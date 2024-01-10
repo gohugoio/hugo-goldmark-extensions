@@ -1,4 +1,4 @@
-package golibtemplate
+package passthrough
 
 import (
 	"testing"

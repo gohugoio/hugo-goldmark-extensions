@@ -1,3 +1,3 @@
-[![Tests on Linux, MacOS and Windows](https://github.com/bep/golibtemplate/workflows/Test/badge.svg)](https://github.com/bep/golibtemplate/actions?query=workflow:Test)
-[![Go Report Card](https://goreportcard.com/badge/github.com/bep/golibtemplate)](https://goreportcard.com/report/github.com/bep/golibtemplate)
-[![GoDoc](https://godoc.org/github.com/bep/golibtemplate?status.svg)](https://godoc.org/github.com/bep/golibtemplate)
+[![Tests on Linux, MacOS and Windows](https://github.com/gohugoio/hugo-goldmark-extensions/workflows/Test/badge.svg)](https://github.com/gohugoio/hugo-goldmark-extensions/actions?query=workflow:Test)
+[![Go Report Card](https://goreportcard.com/badge/github.com/gohugoio/hugo-goldmark-extensions)](https://goreportcard.com/report/github.com/gohugoio/hugo-goldmark-extensions)
+[![GoDoc](https://godoc.org/github.com/gohugoio/hugo-goldmark-extensions?status.svg)](https://godoc.org/github.com/gohugoio/hugo-goldmark-extensions)
