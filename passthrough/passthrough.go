@@ -2,8 +2,6 @@ package passthrough
 
 import (
 	"bytes"
-	// FIXME: remove fmt
-	"fmt"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/parser"
@@ -186,7 +184,6 @@ func (b *blockPassthroughParser) Trigger() []byte {
 
 func (b *blockPassthroughParser) Open(parent ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
 	line, segment := reader.PeekLine()
-	fmt.Println("line: ", string(line))
 	fencePair := GetFullOpeningDelimiter(b, line)
 	// fencePair == nil can happen if only the first byte of an opening delimiter
 	// matches, but it is not the complete opening delimiter.
@@ -196,7 +193,6 @@ func (b *blockPassthroughParser) Open(parent ast.Node, reader text.Reader, pc pa
 	node := NewPassthroughBlock()
 	pc.Set(passthroughParserStateKey, &passthroughParserState{DetectedDelimiters: fencePair})
 
-	fmt.Println("[open] appending segment: ", string(segment.Value(reader.Source())))
 	node.Lines().Append(segment)
 	reader.Advance(segment.Len() - 1)
 	return node, parser.NoChildren
@@ -208,21 +204,16 @@ func (b *blockPassthroughParser) Continue(node ast.Node, reader text.Reader, pc 
 	currentState := pc.Get(passthroughParserStateKey).(*passthroughParserState)
 	fencePair := currentState.DetectedDelimiters
 	line, segment := reader.PeekLine()
-	fmt.Println("[continue] line: ", string(line))
 
 	closingDelimiterPos := bytes.Index(line, []byte(fencePair.Close))
 	if closingDelimiterPos == -1 { // no closer on this line
-		fmt.Println("[continue] no closer")
 		node.Lines().Append(segment)
-		fmt.Println("[continue] appending segment: ", string(segment.Value(reader.Source())))
 		reader.Advance(segment.Len() - 1)
 		return parser.Continue | parser.NoChildren
 	}
 
 	// This segment spans up to and including the closing delimiter.
-	fmt.Println("[continue] found closer")
 	seg := segment.WithStop(segment.Start + closingDelimiterPos + len(fencePair.Close))
-	fmt.Println("[continue] appending segment: ", string(seg.Value(reader.Source())))
 	node.Lines().Append(seg)
 	reader.Advance(closingDelimiterPos + len(fencePair.Close))
 
