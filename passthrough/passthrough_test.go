@@ -85,6 +85,19 @@ x-b^*$. Amazing</p>`
 	c.Assert(actual, qt.Equals, expected)
 }
 
+func TestInlineEquationWithEmphasisDelimitersSplitAcrossLines2(t *testing.T) {
+	input := `Inline $
+a^*=x-b^*
+$ equation`
+	expected := `<p>Inline $
+a^*=x-b^*
+$ equation</p>`
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
 func TestInlineEquationWithEmphasisSplitAcrossParagraphs(t *testing.T) {
 	input := `An equation: $a^
 
@@ -138,6 +151,57 @@ $$a^*=x-b^*
 	c := qt.New(t)
 	c.Assert(actual, qt.Equals, expected)
 }
+
+func TestMassiveEquation(t *testing.T) {
+	input := `$$
+\begin{array} {lcl}
+  L(p,w_i) &=& \dfrac{1}{N}\Sigma_{i=1}^N(\underbrace{f_r(x_2
+  \rightarrow x_1
+  \rightarrow x_0)G(x_1
+  \longleftrightarrow x_2)f_r(x_3
+  \rightarrow x_2
+  \rightarrow x_1)}_{sample\, radiance\, evaluation\, in\, stage2}
+  \\\\\\ &=&
+  \prod_{i=3}^{k-1}(\underbrace{\dfrac{f_r(x_{i+1}
+  \rightarrow x_i
+  \rightarrow x_{i-1})G(x_i
+  \longleftrightarrow x_{i-1})}{p_a(x_{i-1})}}_{stored\,in\,vertex\, during\,light\, path\, tracing\, in\, stage1})\dfrac{G(x_k
+  \longleftrightarrow x_{k-1})L_e(x_k
+  \rightarrow x_{k-1})}{p_a(x_{k-1})p_a(x_k)})
+\end{array}
+$$`
+	expected := input
+
+	actual := Parse(t, input)
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestMassiveEquationSquareDelimiters(t *testing.T) {
+	input := `\[
+\begin{array} {lcl}
+  L(p,w_i) &=& \dfrac{1}{N}\Sigma_{i=1}^N(\underbrace{f_r(x_2
+  \rightarrow x_1
+  \rightarrow x_0)G(x_1
+  \longleftrightarrow x_2)f_r(x_3
+  \rightarrow x_2
+  \rightarrow x_1)}_{sample\, radiance\, evaluation\, in\, stage2}
+  \\\\\\ &=&
+  \prod_{i=3}^{k-1}(\underbrace{\dfrac{f_r(x_{i+1}
+  \rightarrow x_i
+  \rightarrow x_{i-1})G(x_i
+  \longleftrightarrow x_{i-1})}{p_a(x_{i-1})}}_{stored\,in\,vertex\, during\,light\, path\, tracing\, in\, stage1})\dfrac{G(x_k
+  \longleftrightarrow x_{k-1})L_e(x_k
+  \rightarrow x_{k-1})}{p_a(x_{k-1})p_a(x_k)})
+\end{array}
+\]`
+	expected := input
+
+	actual := Parse(t, input)
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
 
 func TestBlockEquationBreakingParagraph(t *testing.T) {
   input := `An equation: \\[a^*=x-b^*\\] Amazing.`
