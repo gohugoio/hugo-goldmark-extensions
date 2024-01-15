@@ -106,10 +106,45 @@ $$
 
 Amazing`
 	expected := `<p>An equation:</p>
-<p>$$
+
+$$
 a^*=x-b^*
-$$</p>
+$$
+
 <p>Amazing</p>`
+
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestBlockEquationWithOpenAndCloseOnSameLines(t *testing.T) {
+	input := `An equation:
+
+$$a^*=x-b^*
+=c$$
+
+Amazing`
+	expected := `<p>An equation:</p>
+
+$$a^*=x-b^*
+=c$$
+
+<p>Amazing</p>`
+
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestBlockEquationBreakingParagraph(t *testing.T) {
+  input := `An equation: \\[a^*=x-b^*\\] Amazing.`
+	// This one is treated as inline because, for whatever reason, the block
+	// parser is never triggered, even though we set CanInterruptParagraph to be
+	// true. Hence it does not trigger and gets mangled as normal.
+	expected := `<p>An equation: \[a^<em>=x-b^</em>\] Amazing.</p>`
 
 	actual := Parse(t, input)
 
