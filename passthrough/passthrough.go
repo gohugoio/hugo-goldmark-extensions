@@ -236,16 +236,16 @@ type passthroughBlockRenderer struct {
 
 func (r *passthroughBlockRenderer) renderRawBlock(w util.BufWriter, source []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
 	if entering {
-    w.WriteString("\n")
+		w.WriteString("\n")
 		l := n.Lines().Len()
 		for i := 0; i < l; i++ {
 			line := n.Lines().At(i)
 			w.WriteString(string(line.Value(source)))
 		}
-    w.WriteString("\n")
+		w.WriteString("\n")
 	} else {
-    w.WriteString("\n")
-  }
+		w.WriteString("\n")
+	}
 	return ast.WalkContinue, nil
 }
 
