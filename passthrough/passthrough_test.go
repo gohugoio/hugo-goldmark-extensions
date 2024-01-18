@@ -448,7 +448,7 @@ func TestExample25(t *testing.T) {
 \end{array}
 $$`
 
-	expected := input
+	expected := "<p>" + input + "</p>"
 	actual := Parse(t, input)
 
 	c := qt.New(t)
@@ -474,7 +474,7 @@ func TestExample26(t *testing.T) {
  \end{array}
  \]`
 
-	expected := input
+	expected := "<p>" + input + "</p>"
 	actual := Parse(t, input)
 
 	c := qt.New(t)
