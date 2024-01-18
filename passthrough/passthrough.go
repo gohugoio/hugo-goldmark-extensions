@@ -2,12 +2,14 @@ package passthrough
 
 import (
 	"bytes"
+	"fmt"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/renderer"
 	"github.com/yuin/goldmark/text"
 	"github.com/yuin/goldmark/util"
+	"strings"
 )
 
 type delimiters struct {
@@ -54,6 +56,50 @@ func OpenersFirstByte(s parserWithDelimiters) []byte {
 }
 
 // ---- Inline Parser ----
+
+type PassthroughInline struct {
+	ast.BaseInline
+
+	// The segment of text that this inline passthrough represents.
+	Segment text.Segment
+}
+
+func NewPassthroughInline(segment text.Segment) *PassthroughInline {
+	return &PassthroughInline{
+		Segment: segment,
+	}
+}
+
+// IsRaw implements Node.IsRaw.
+func (n *PassthroughInline) IsRaw() bool {
+	return true
+}
+
+// Inline implements Inline.Inline.
+func (n *PassthroughInline) Inline() {
+}
+
+// Text implements Node.Text.
+func (n *PassthroughInline) Text(source []byte) []byte {
+	return n.Segment.Value(source)
+}
+
+// Dump implements Node.Dump .
+func (n *PassthroughInline) Dump(source []byte, level int) {
+	indent := strings.Repeat("    ", level)
+	fmt.Printf("%sPassthroughInline {\n", indent)
+	indent2 := strings.Repeat("    ", level+1)
+	fmt.Printf("%sSegment: \"%s\"\n", indent2, n.Text(source))
+	fmt.Printf("%s}\n", indent)
+}
+
+// KindPassthroughInline is a NodeKind of the PassthroughInline node.
+var KindPassthroughInline = ast.NewNodeKind("PassthroughInline")
+
+// Kind implements Node.Kind.
+func (n *PassthroughInline) Kind() ast.NodeKind {
+	return KindPassthroughInline
+}
 
 type inlinePassthroughParser struct {
 	PassthroughDelimiters []delimiters
@@ -112,177 +158,49 @@ func (s *inlinePassthroughParser) Parse(parent ast.Node, block text.Reader, pc p
 		// up to and including the closing delimiter.
 		seg := startSegment.WithStop(lineSegment.Start + closingDelimiterPos + len(fencePair.Close))
 		block.Advance(closingDelimiterPos + len(fencePair.Close))
-
-		return ast.NewRawTextSegment(seg)
+		return NewPassthroughInline(seg)
 	}
 }
 
-// ---- Block Parser ----
-
-// A PassthroughBlock struct represents a fenced block of raw text to pass
-// through unchanged.
-// There is no built-in "raw text block" node in goldmark, and the closest
-// thing is a code block, which emits `<pre><code>` tags. So we need a new
-// node and a new block renderer.
-type PassthroughBlock struct {
-	ast.BaseBlock
+type passthroughInlineRenderer struct {
 }
 
-// IsRaw implements Node.IsRaw.
-func (n *PassthroughBlock) IsRaw() bool {
-	return true
-}
-
-// Dump implements Node.Dump .
-func (n *PassthroughBlock) Dump(source []byte, level int) {
-	ast.DumpHelper(n, source, level, nil, nil)
-}
-
-// KindPassthroughBlock is a NodeKind of the PassthroughBlock node.
-var KindPassthroughBlock = ast.NewNodeKind("PassthroughBlock")
-
-// Kind implements Node.Kind.
-func (n *PassthroughBlock) Kind() ast.NodeKind {
-	return KindPassthroughBlock
-}
-
-// NewPassthroughBlock return a new PassthroughBlock node.
-func NewPassthroughBlock() *PassthroughBlock {
-	return &PassthroughBlock{
-		BaseBlock: ast.BaseBlock{},
-	}
-}
-
-// Block parsing happens across different interface methods, and the initial
-// Open detects the fence pair to use by its opening delimiter. This needs to
-// be preserved for the Continue and Close methods to have access to the
-// corresponding closing delimiter.
-var passthroughParserStateKey = parser.NewContextKey()
-
-type passthroughParserState struct {
-	DetectedDelimiters *delimiters
-}
-
-type blockPassthroughParser struct {
-	PassthroughDelimiters []delimiters
-}
-
-// Implements parserWithDelimiters for blockPassthroughParser
-func (b *blockPassthroughParser) delimiters() []delimiters {
-	return b.PassthroughDelimiters
-}
-
-func NewBlockPassthroughParser(ds []delimiters) parser.BlockParser {
-	return &blockPassthroughParser{
-		PassthroughDelimiters: ds,
-	}
-}
-
-func (b *blockPassthroughParser) Trigger() []byte {
-	return OpenersFirstByte(b)
-}
-
-func (b *blockPassthroughParser) Open(parent ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
-	line, segment := reader.PeekLine()
-	fencePair := GetFullOpeningDelimiter(b, line)
-	// fencePair == nil can happen if only the first byte of an opening delimiter
-	// matches, but it is not the complete opening delimiter.
-	if fencePair == nil {
-		return nil, parser.NoChildren
-	}
-	node := NewPassthroughBlock()
-	pc.Set(passthroughParserStateKey, &passthroughParserState{DetectedDelimiters: fencePair})
-
-	node.Lines().Append(segment)
-	reader.Advance(segment.Len() - 1)
-	return node, parser.NoChildren
-}
-
-func (b *blockPassthroughParser) Continue(node ast.Node, reader text.Reader, pc parser.Context) parser.State {
-	// currentState cannot be nil or else Continue was triggered without Open
-	// successfully creating a new node.
-	currentState := pc.Get(passthroughParserStateKey).(*passthroughParserState)
-	fencePair := currentState.DetectedDelimiters
-	line, segment := reader.PeekLine()
-
-	closingDelimiterPos := bytes.Index(line, []byte(fencePair.Close))
-	if closingDelimiterPos == -1 { // no closer on this line
-		node.Lines().Append(segment)
-		reader.Advance(segment.Len() - 1)
-		return parser.Continue | parser.NoChildren
-	}
-
-	// This segment spans up to and including the closing delimiter.
-	seg := segment.WithStop(segment.Start + closingDelimiterPos + len(fencePair.Close))
-	node.Lines().Append(seg)
-	reader.Advance(closingDelimiterPos + len(fencePair.Close))
-
-	return parser.Close
-}
-
-func (b *blockPassthroughParser) Close(node ast.Node, reader text.Reader, pc parser.Context) {
-}
-
-func (b *blockPassthroughParser) CanInterruptParagraph() bool {
-	return true
-}
-
-func (b *blockPassthroughParser) CanAcceptIndentedLine() bool {
-	return true
-}
-
-type passthroughBlockRenderer struct {
-}
-
-func (r *passthroughBlockRenderer) renderRawBlock(w util.BufWriter, source []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
+func (r *passthroughInlineRenderer) renderRawInline(w util.BufWriter, source []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
 	if entering {
-		w.WriteString("\n")
-		l := n.Lines().Len()
-		for i := 0; i < l; i++ {
-			line := n.Lines().At(i)
-			w.WriteString(string(line.Value(source)))
-		}
-		w.WriteString("\n")
-	} else {
-		w.WriteString("\n")
+		w.WriteString(string(n.Text(source)))
 	}
 	return ast.WalkContinue, nil
 }
 
 // RegisterFuncs implements renderer.NodeRenderer.RegisterFuncs.
-func (r *passthroughBlockRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
-	reg.Register(KindPassthroughBlock, r.renderRawBlock)
+func (r *passthroughInlineRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
+	reg.Register(KindPassthroughInline, r.renderRawInline)
 }
 
-func NewPassthroughBlockRenderer() renderer.NodeRenderer {
-	return &passthroughBlockRenderer{}
+func NewPassthroughInlineRenderer() renderer.NodeRenderer {
+	return &passthroughInlineRenderer{}
 }
 
 // ---- Extension and config ----
 
 type passthrough struct {
 	InlineDelimiters []delimiters
-	BlockDelimiters  []delimiters
 }
 
-func NewPassthroughWithDelimiters(Inlines []delimiters, Blocks []delimiters) goldmark.Extender {
+func NewPassthroughWithDelimiters(Delimiters []delimiters) goldmark.Extender {
 	return &passthrough{
-		InlineDelimiters: Inlines,
-		BlockDelimiters:  Blocks,
+		InlineDelimiters: Delimiters,
 	}
 }
 
 func (e *passthrough) Extend(m goldmark.Markdown) {
 	m.Parser().AddOptions(
-		parser.WithBlockParsers(
-			util.Prioritized(NewBlockPassthroughParser(e.BlockDelimiters), 101),
-		),
 		parser.WithInlineParsers(
 			util.Prioritized(NewInlinePassthroughParser(e.InlineDelimiters), 201),
 		),
 	)
 
 	m.Renderer().AddOptions(renderer.WithNodeRenderers(
-		util.Prioritized(NewPassthroughBlockRenderer(), 101),
+		util.Prioritized(NewPassthroughInlineRenderer(), 101),
 	))
 }

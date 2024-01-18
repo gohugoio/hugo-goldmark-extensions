@@ -13,7 +13,17 @@ import (
 func buildTestParser() goldmark.Markdown {
 	md := goldmark.New(
 		goldmark.WithExtensions(NewPassthroughWithDelimiters(
-			/*inlines*/ []delimiters{
+			[]delimiters{
+				// $$ is more specific than $, and so it has to come first
+				// or else the parser will match $$ as an empty segment.
+				{
+					Open:  "$$",
+					Close: "$$",
+				},
+				{
+					Open:  "\\[",
+					Close: "\\]",
+				},
 				{
 					Open:  "$",
 					Close: "$",
@@ -21,16 +31,6 @@ func buildTestParser() goldmark.Markdown {
 				{
 					Open:  "\\(",
 					Close: "\\)",
-				},
-			},
-			/*blocks*/ []delimiters{
-				{
-					Open:  "$$",
-					Close: "$$",
-				},
-				{
-					Open:  "\\[",
-					Close: "\\[",
 				},
 			},
 		)),
@@ -41,6 +41,11 @@ func buildTestParser() goldmark.Markdown {
 func Parse(t *testing.T, input string) string {
 	md := buildTestParser()
 	var buf bytes.Buffer
+
+	// For debugging: add import of goldmark/text
+	// root := md.Parser().Parse(text.NewReader([]byte(input)))
+	// root.Dump([]byte(input), 0)
+
 	if err := md.Convert([]byte(input), &buf); err != nil {
 		t.Fatal(err)
 	}
@@ -119,11 +124,9 @@ $$
 
 Amazing`
 	expected := `<p>An equation:</p>
-
-$$
+<p>$$
 a^*=x-b^*
-$$
-
+$$</p>
 <p>Amazing</p>`
 
 	actual := Parse(t, input)
@@ -140,64 +143,12 @@ $$a^*=x-b^*
 
 Amazing`
 	expected := `<p>An equation:</p>
-
-$$a^*=x-b^*
-=c$$
-
+<p>$$a^*=x-b^*
+=c$$</p>
 <p>Amazing</p>`
 
 	actual := Parse(t, input)
 
-	c := qt.New(t)
-	c.Assert(actual, qt.Equals, expected)
-}
-
-func TestMassiveEquation(t *testing.T) {
-	input := `$$
-\begin{array} {lcl}
-  L(p,w_i) &=& \dfrac{1}{N}\Sigma_{i=1}^N(\underbrace{f_r(x_2
-  \rightarrow x_1
-  \rightarrow x_0)G(x_1
-  \longleftrightarrow x_2)f_r(x_3
-  \rightarrow x_2
-  \rightarrow x_1)}_{sample\, radiance\, evaluation\, in\, stage2}
-  \\\\\\ &=&
-  \prod_{i=3}^{k-1}(\underbrace{\dfrac{f_r(x_{i+1}
-  \rightarrow x_i
-  \rightarrow x_{i-1})G(x_i
-  \longleftrightarrow x_{i-1})}{p_a(x_{i-1})}}_{stored\,in\,vertex\, during\,light\, path\, tracing\, in\, stage1})\dfrac{G(x_k
-  \longleftrightarrow x_{k-1})L_e(x_k
-  \rightarrow x_{k-1})}{p_a(x_{k-1})p_a(x_k)})
-\end{array}
-$$`
-	expected := input
-
-	actual := Parse(t, input)
-	c := qt.New(t)
-	c.Assert(actual, qt.Equals, expected)
-}
-
-func TestMassiveEquationSquareDelimiters(t *testing.T) {
-	input := `\[
-\begin{array} {lcl}
-  L(p,w_i) &=& \dfrac{1}{N}\Sigma_{i=1}^N(\underbrace{f_r(x_2
-  \rightarrow x_1
-  \rightarrow x_0)G(x_1
-  \longleftrightarrow x_2)f_r(x_3
-  \rightarrow x_2
-  \rightarrow x_1)}_{sample\, radiance\, evaluation\, in\, stage2}
-  \\\\\\ &=&
-  \prod_{i=3}^{k-1}(\underbrace{\dfrac{f_r(x_{i+1}
-  \rightarrow x_i
-  \rightarrow x_{i-1})G(x_i
-  \longleftrightarrow x_{i-1})}{p_a(x_{i-1})}}_{stored\,in\,vertex\, during\,light\, path\, tracing\, in\, stage1})\dfrac{G(x_k
-  \longleftrightarrow x_{k-1})L_e(x_k
-  \rightarrow x_{k-1})}{p_a(x_{k-1})p_a(x_k)})
-\end{array}
-\]`
-	expected := input
-
-	actual := Parse(t, input)
 	c := qt.New(t)
 	c.Assert(actual, qt.Equals, expected)
 }
@@ -277,7 +228,6 @@ $$ equation`
 	actual := Parse(t, input)
 
 	c := qt.New(t)
-	c.Skip() // TODO failing test
 	c.Assert(actual, qt.Equals, expected)
 }
 
@@ -289,7 +239,6 @@ $$ equation`
 	actual := Parse(t, input)
 
 	c := qt.New(t)
-	c.Skip() // TODO failing test
 	c.Assert(actual, qt.Equals, expected)
 }
 
@@ -355,7 +304,6 @@ func TestExample13(t *testing.T) {
 	actual := Parse(t, input)
 
 	c := qt.New(t)
-	c.Skip() // TODO failing test
 	c.Assert(actual, qt.Equals, expected)
 }
 
@@ -368,7 +316,6 @@ $$ equation`
 	actual := Parse(t, input)
 
 	c := qt.New(t)
-	c.Skip() // TODO failing test
 	c.Assert(actual, qt.Equals, expected)
 }
 
@@ -380,7 +327,6 @@ $$ equation`
 	actual := Parse(t, input)
 
 	c := qt.New(t)
-	c.Skip() // TODO failing test
 	c.Assert(actual, qt.Equals, expected)
 }
 
@@ -392,7 +338,6 @@ a^*=x-b^*$$ equation`
 	actual := Parse(t, input)
 
 	c := qt.New(t)
-	c.Skip() // TODO failing test
 	c.Assert(actual, qt.Equals, expected)
 }
 
@@ -447,7 +392,6 @@ func TestExample21(t *testing.T) {
 	actual := Parse(t, input)
 
 	c := qt.New(t)
-	c.Skip() // TODO failing test
 	c.Assert(actual, qt.Equals, expected)
 }
 
@@ -460,7 +404,6 @@ a^*=x-b^*
 	actual := Parse(t, input)
 
 	c := qt.New(t)
-	c.Skip() // TODO failing test
 	c.Assert(actual, qt.Equals, expected)
 }
 
@@ -472,7 +415,6 @@ func TestExample23(t *testing.T) {
 	actual := Parse(t, input)
 
 	c := qt.New(t)
-	c.Skip() // TODO failing test
 	c.Assert(actual, qt.Equals, expected)
 }
 
@@ -484,7 +426,6 @@ a^*=x-b^*\] equation`
 	actual := Parse(t, input)
 
 	c := qt.New(t)
-	c.Skip() // TODO failing test
 	c.Assert(actual, qt.Equals, expected)
 }
 
@@ -516,22 +457,22 @@ $$`
 
 func TestExample26(t *testing.T) {
 	input := `\[
-\begin{array} {lcl}
-	L(p,w_i) &=& \dfrac{1}{N}\Sigma_{i=1}^N(\underbrace{f_r(x_2
-	\rightarrow x_1
-	\rightarrow x_0)G(x_1
-	\longleftrightarrow x_2)f_r(x_3
-	\rightarrow x_2
-	\rightarrow x_1)}_{sample\, radiance\, evaluation\, in\, stage2}
-	\\\\\\ &=&
-	\prod_{i=3}^{k-1}(\underbrace{\dfrac{f_r(x_{i+1}
-	\rightarrow x_i
-	\rightarrow x_{i-1})G(x_i
-	\longleftrightarrow x_{i-1})}{p_a(x_{i-1})}}_{stored\,in\,vertex\, during\,light\, path\, tracing\, in\, stage1})\dfrac{G(x_k
-	\longleftrightarrow x_{k-1})L_e(x_k
-	\rightarrow x_{k-1})}{p_a(x_{k-1})p_a(x_k)})
-\end{array}
-\]`
+ \begin{array} {lcl}
+ 	L(p,w_i) &=& \dfrac{1}{N}\Sigma_{i=1}^N(\underbrace{f_r(x_2
+ 	\rightarrow x_1
+ 	\rightarrow x_0)G(x_1
+ 	\longleftrightarrow x_2)f_r(x_3
+ 	\rightarrow x_2
+ 	\rightarrow x_1)}_{sample\, radiance\, evaluation\, in\, stage2}
+ 	\\\\\\ &=&
+ 	\prod_{i=3}^{k-1}(\underbrace{\dfrac{f_r(x_{i+1}
+ 	\rightarrow x_i
+ 	\rightarrow x_{i-1})G(x_i
+ 	\longleftrightarrow x_{i-1})}{p_a(x_{i-1})}}_{stored\,in\,vertex\, during\,light\, path\, tracing\, in\, stage1})\dfrac{G(x_k
+ 	\longleftrightarrow x_{k-1})L_e(x_k
+ 	\rightarrow x_{k-1})}{p_a(x_{k-1})p_a(x_k)})
+ \end{array}
+ \]`
 
 	expected := input
 	actual := Parse(t, input)
