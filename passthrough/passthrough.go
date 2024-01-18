@@ -17,10 +17,6 @@ type delimiters struct {
 	Close string
 }
 
-type parserWithDelimiters interface {
-	delimiters() []delimiters
-}
-
 // Determine if a byte array starts with a given string
 func startsWith(b []byte, s string) bool {
 	if len(b) < len(s) {
@@ -29,33 +25,6 @@ func startsWith(b []byte, s string) bool {
 
 	return string(b[:len(s)]) == s
 }
-
-// Determine if the input slice starts with a full valid opening delimiter.
-// If so, returns the delimiter struct, otherwise returns nil.
-func GetFullOpeningDelimiter(s parserWithDelimiters, line []byte) *delimiters {
-	for _, d := range s.delimiters() {
-		if startsWith(line, d.Open) {
-			return &d
-		}
-	}
-
-	return nil
-}
-
-// Return an array of bytes containing the first byte of each opening
-// delimiter. Used to populate the trigger list for inline and block parsers.
-// `Parse` will be executed once for each character that is in this list of
-// allowed trigger characters. Our parse function needs to do some additional
-// checks because Trigger only works for single-byte delimiters.
-func OpenersFirstByte(s parserWithDelimiters) []byte {
-	var firstBytes []byte
-	for _, d := range s.delimiters() {
-		firstBytes = append(firstBytes, d.Open[0])
-	}
-	return firstBytes
-}
-
-// ---- Inline Parser ----
 
 type PassthroughInline struct {
 	ast.BaseInline
@@ -96,19 +65,35 @@ type inlinePassthroughParser struct {
 	PassthroughDelimiters []delimiters
 }
 
-// Implements parserWithDelimiters for inlinePassthroughParser
-func (s *inlinePassthroughParser) delimiters() []delimiters {
-	return s.PassthroughDelimiters
-}
-
 func NewInlinePassthroughParser(ds []delimiters) parser.InlineParser {
 	return &inlinePassthroughParser{
 		PassthroughDelimiters: ds,
 	}
 }
 
+// Determine if the input slice starts with a full valid opening delimiter.
+// If so, returns the delimiter struct, otherwise returns nil.
+func GetFullOpeningDelimiter(s *inlinePassthroughParser, line []byte) *delimiters {
+	for _, d := range s.PassthroughDelimiters {
+		if startsWith(line, d.Open) {
+			return &d
+		}
+	}
+
+	return nil
+}
+
+// Return an array of bytes containing the first byte of each opening
+// delimiter. Used to populate the trigger list for inline and block parsers.
+// `Parse` will be executed once for each character that is in this list of
+// allowed trigger characters. Our parse function needs to do some additional
+// checks because Trigger only works for single-byte delimiters.
 func (s *inlinePassthroughParser) Trigger() []byte {
-	return OpenersFirstByte(s)
+	var firstBytes []byte
+	for _, d := range s.PassthroughDelimiters {
+		firstBytes = append(firstBytes, d.Open[0])
+	}
+	return firstBytes
 }
 
 func (s *inlinePassthroughParser) Parse(parent ast.Node, block text.Reader, pc parser.Context) ast.Node {
