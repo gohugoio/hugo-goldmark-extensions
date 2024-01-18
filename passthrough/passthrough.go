@@ -70,21 +70,12 @@ func NewPassthroughInline(segment text.Segment) *PassthroughInline {
 	}
 }
 
-// IsRaw implements Node.IsRaw.
-func (n *PassthroughInline) IsRaw() bool {
-	return true
-}
-
-// Inline implements Inline.Inline.
-func (n *PassthroughInline) Inline() {
-}
-
 // Text implements Node.Text.
 func (n *PassthroughInline) Text(source []byte) []byte {
 	return n.Segment.Value(source)
 }
 
-// Dump implements Node.Dump .
+// Dump implements Node.Dump.
 func (n *PassthroughInline) Dump(source []byte, level int) {
 	indent := strings.Repeat("    ", level)
 	fmt.Printf("%sPassthroughInline {\n", indent)

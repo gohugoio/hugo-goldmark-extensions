@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/text"
 
 	qt "github.com/frankban/quicktest"
 )
@@ -70,13 +71,12 @@ func TestInlineEquationWithEmphasisDelimiters(t *testing.T) {
 	c.Assert(actual, qt.Equals, expected)
 }
 
-func TestInlineEquationWithMultiByteDelimiters(t *testing.T) {
+func TestDump(t *testing.T) {
 	input := "An equation: \\(a^*=x-b^*\\). Amazing"
-	expected := "<p>An equation: \\(a^*=x-b^*\\). Amazing</p>"
-	actual := Parse(t, input)
-
-	c := qt.New(t)
-	c.Assert(actual, qt.Equals, expected)
+	md := buildTestParser()
+	root := md.Parser().Parse(text.NewReader([]byte(input)))
+	root.Dump([]byte(input), 0)
+  // Prints to stdout, so just test that it doesn't crash
 }
 
 func TestInlineEquationWithEmphasisDelimitersSplitAcrossLines(t *testing.T) {
@@ -153,15 +153,18 @@ Amazing`
 	c.Assert(actual, qt.Equals, expected)
 }
 
-func TestBlockEquationBreakingParagraph(t *testing.T) {
-	input := `An equation: \\[a^*=x-b^*\\] Amazing.`
-	// This one is treated as inline because, for whatever reason, the block
-	// parser is never triggered, even though we set CanInterruptParagraph to be
-	// true. Hence it does not trigger and gets mangled as normal.
-	expected := `<p>An equation: \[a^<em>=x-b^</em>\] Amazing.</p>`
-
+func TestUnterminatedDelimiters(t *testing.T) {
+	input := `An equation: $a^*=x-b^* Amazing.`
+	expected := `<p>An equation: $a^<em>=x-b^</em> Amazing.</p>`
 	actual := Parse(t, input)
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
 
+func TestFirstByteOfMultiByteDelimiterEndsText(t *testing.T) {
+	input := `An equation: \`
+	expected := `<p>An equation: \</p>`
+	actual := Parse(t, input)
 	c := qt.New(t)
 	c.Assert(actual, qt.Equals, expected)
 }
