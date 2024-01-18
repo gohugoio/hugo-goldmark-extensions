@@ -76,7 +76,7 @@ func TestDump(t *testing.T) {
 	md := buildTestParser()
 	root := md.Parser().Parse(text.NewReader([]byte(input)))
 	root.Dump([]byte(input), 0)
-  // Prints to stdout, so just test that it doesn't crash
+	// Prints to stdout, so just test that it doesn't crash
 }
 
 func TestInlineEquationWithEmphasisDelimitersSplitAcrossLines(t *testing.T) {
