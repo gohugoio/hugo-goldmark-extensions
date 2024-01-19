@@ -160,6 +160,14 @@ func TestUnterminatedDelimiters(t *testing.T) {
 	c.Assert(actual, qt.Equals, expected)
 }
 
+func TestEscapedSingleByteDelimiter(t *testing.T) {
+	input := `I want \\$ *dollars*: $a^*=x-b^*$ Amazing.`
+	expected := `<p>I want \$ <em>dollars</em>: $a^*=x-b^*$ Amazing.</p>`
+	actual := Parse(t, input)
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
 func TestFirstByteOfMultiByteDelimiterEndsText(t *testing.T) {
 	input := `An equation: \`
 	expected := `<p>An equation: \</p>`

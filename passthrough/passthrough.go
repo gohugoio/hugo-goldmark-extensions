@@ -94,8 +94,18 @@ func GetFullOpeningDelimiter(delims []delimiters, line []byte) *delimiters {
 // checks because Trigger only works for single-byte delimiters.
 func OpenersFirstByte(delims []delimiters) []byte {
 	var firstBytes []byte
+	containsBackslash := false
 	for _, d := range delims {
+		if d.Open[0] == '\\' {
+			containsBackslash = true
+		}
 		firstBytes = append(firstBytes, d.Open[0])
+	}
+
+	if !containsBackslash {
+		// always trigger on backslash because it can be used to escape the opening
+		// delimiter.
+		firstBytes = append(firstBytes, '\\')
 	}
 	return firstBytes
 }
@@ -127,7 +137,18 @@ func (s *inlinePassthroughParser) Parse(parent ast.Node, block text.Reader, pc p
 	// matches, but it is not the complete opening delimiter. The trigger causes
 	// this Parse function to execute, but the trigger interface is limited to
 	// matching single bytes.
+	// It can also be because the opening delimiter is escaped with a
+	// double-backslash. In this case, we advance and return nil.
 	if fencePair == nil {
+		if len(line) > 2 && line[0] == '\\' && line[1] == '\\' {
+			fencePair = GetFullOpeningDelimiter(s.PassthroughDelimiters, line[2:])
+			if fencePair != nil {
+				// Opening delimiter is escaped, return the escaped opener as plain text
+        // So that the characters are not processed again.
+				block.Advance(2 + len(fencePair.Open))
+				return ast.NewTextSegment(startSegment.WithStop(startSegment.Start + len(fencePair.Open) + 2))
+			}
+		}
 		return nil
 	}
 
