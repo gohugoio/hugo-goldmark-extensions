@@ -14,9 +14,7 @@ import (
 func buildTestParser() goldmark.Markdown {
 	md := goldmark.New(
 		goldmark.WithExtensions(NewPassthroughWithDelimiters(
-			[]delimiters{
-				// $$ is more specific than $, and so it has to come first
-				// or else the parser will match $$ as an empty segment.
+			/*inline*/ []delimiters{
 				{
 					Open:  "$$",
 					Close: "$$",
@@ -34,6 +32,16 @@ func buildTestParser() goldmark.Markdown {
 					Close: "\\)",
 				},
 			},
+			/*block*/ []delimiters{
+				{
+					Open:  "$$",
+					Close: "$$",
+				},
+				{
+					Open:  "\\[",
+					Close: "\\]",
+				},
+			},
 		)),
 	)
 	return md
@@ -43,7 +51,6 @@ func Parse(t *testing.T, input string) string {
 	md := buildTestParser()
 	var buf bytes.Buffer
 
-	// For debugging: add import of goldmark/text
 	// root := md.Parser().Parse(text.NewReader([]byte(input)))
 	// root.Dump([]byte(input), 0)
 
@@ -124,9 +131,9 @@ $$
 
 Amazing`
 	expected := `<p>An equation:</p>
-<p>$$
+$$
 a^*=x-b^*
-$$</p>
+$$
 <p>Amazing</p>`
 
 	actual := Parse(t, input)
@@ -143,8 +150,8 @@ $$a^*=x-b^*
 
 Amazing`
 	expected := `<p>An equation:</p>
-<p>$$a^*=x-b^*
-=c$$</p>
+$$a^*=x-b^*
+=c$$
 <p>Amazing</p>`
 
 	actual := Parse(t, input)
@@ -451,7 +458,7 @@ func TestExample25(t *testing.T) {
 \end{array}
 $$`
 
-	expected := "<p>" + input + "</p>"
+	expected := input
 	actual := Parse(t, input)
 
 	c := qt.New(t)
@@ -477,7 +484,7 @@ func TestExample26(t *testing.T) {
  \end{array}
  \]`
 
-	expected := "<p>" + input + "</p>"
+	expected := input
 	actual := Parse(t, input)
 
 	c := qt.New(t)
