@@ -31,11 +31,15 @@ type PassthroughInline struct {
 
 	// The segment of text that this inline passthrough represents.
 	Segment text.Segment
+
+	// The matched delimiters
+	Delimiters *delimiters
 }
 
-func NewPassthroughInline(segment text.Segment) *PassthroughInline {
+func NewPassthroughInline(segment text.Segment, delimiters *delimiters) *PassthroughInline {
 	return &PassthroughInline{
-		Segment: segment,
+		Segment:    segment,
+		Delimiters: delimiters,
 	}
 }
 
@@ -96,6 +100,17 @@ func OpenersFirstByte(delims []delimiters) []byte {
 	return firstBytes
 }
 
+// Determine if the input list of delimiters contains the given delimiter pair
+func ContainsDelimiters(delims []delimiters, toFind *delimiters) bool {
+	for _, d := range delims {
+		if d.Open == toFind.Open && d.Close == toFind.Close {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (s *inlinePassthroughParser) Trigger() []byte {
 	return OpenersFirstByte(s.PassthroughDelimiters)
 }
@@ -142,7 +157,7 @@ func (s *inlinePassthroughParser) Parse(parent ast.Node, block text.Reader, pc p
 		}
 
 		block.Advance(closingDelimiterPos + len(fencePair.Close))
-		return NewPassthroughInline(seg)
+		return NewPassthroughInline(seg, fencePair)
 	}
 }
 
@@ -280,6 +295,93 @@ func (r *passthroughBlockRenderer) renderRawBlock(w util.BufWriter, source []byt
 	return ast.WalkSkipChildren, nil
 }
 
+// To support the use of passthrough block delimiters in inline contexts, I
+// wasn't able to get the normal block parser to work. Goldmark seems to only
+// trigger the inline parser when the trigger is not the first characters in a
+// block. So instead we hook into the transformer interface, and process an
+// inline passthrough after it's parsed, looking for nodes whose delimiters
+// match the block delimiters, and splitting the paragraph at that point.
+type passthroughInlineTransformer struct {
+	BlockDelimiters []delimiters
+}
+
+var PassthroughInlineTransformer = &passthroughInlineTransformer{}
+
+func (p *passthroughInlineTransformer) Transform(
+	doc *ast.Document, reader text.Reader, pc parser.Context) {
+
+  ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+    if !entering {
+      return ast.WalkContinue, nil
+    }
+    // Only match inline passthroughs that are direct descendants of
+    // paragraphs. It's not clear what it would mean to have a block equation
+    // rendered in, say, a list item, so in that case we just leave it as an
+    // inline passthrough.
+		if n.Kind() != KindPassthroughInline {
+			return ast.WalkContinue, nil
+		}
+    if n.Parent() == nil || n.Parent().Kind() != ast.KindParagraph {
+			return ast.WalkContinue, nil
+		}
+
+		inline := n.(*PassthroughInline)
+		if !ContainsDelimiters(p.BlockDelimiters, inline.Delimiters) {
+			return ast.WalkContinue, nil
+		}
+    paragraph := n.Parent().(*ast.Paragraph)
+    parent := paragraph.Parent()
+
+		// Split the paragraph at this point
+		precedingParagraph := ast.NewParagraph()
+    for c := paragraph.FirstChild(); c != n && c != nil; c = c.NextSibling() {
+      precedingParagraph.AppendChild(precedingParagraph, c)
+    }
+    for i := 0; i < paragraph.Lines().Len(); i++ {
+      seg := paragraph.Lines().At(i)
+      if seg.Stop > inline.Segment.Start {
+        precedingParagraph.Lines().Append(seg.WithStop(inline.Segment.Start))
+        break
+      }
+      precedingParagraph.Lines().Append(seg)
+    }
+		parent.InsertAfter(parent, paragraph, precedingParagraph)
+
+		newBlock := NewPassthroughBlock()
+		newBlock.Lines().Append(inline.Segment)
+		parent.InsertAfter(parent, precedingParagraph, newBlock)
+
+		succeedingParagraph := ast.NewParagraph()
+
+    for c := n.NextSibling(); c != nil; c = c.NextSibling() {
+      succeedingParagraph.AppendChild(succeedingParagraph, c)
+    }
+    for i := 0; i < paragraph.Lines().Len(); i++ {
+      seg := paragraph.Lines().At(i)
+      if seg.Start <= inline.Segment.Start {
+        // We haven't passed the inline passthrough
+        continue
+      }
+      if seg.Start >= inline.Segment.Stop {
+        // We have completely passed the inline passthrough
+        precedingParagraph.Lines().Append(seg)
+        continue
+      }
+      precedingParagraph.Lines().Append(seg.WithStart(inline.Segment.Stop))
+    }
+		parent.InsertAfter(parent, newBlock, succeedingParagraph)
+
+		parent.RemoveChild(parent, paragraph)
+    return ast.WalkSkipChildren, nil
+  })
+}
+
+func NewPassthroughInlineTransformer(ds []delimiters) parser.ASTTransformer {
+	return &passthroughInlineTransformer{
+		BlockDelimiters: ds,
+	}
+}
+
 // RegisterFuncs implements renderer.NodeRenderer.RegisterFuncs.
 func (r *passthroughInlineRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
 	reg.Register(KindPassthroughInline, r.renderRawInline)
@@ -321,6 +423,9 @@ func (e *passthrough) Extend(m goldmark.Markdown) {
 		),
 		parser.WithBlockParsers(
 			util.Prioritized(NewBlockPassthroughParser(e.BlockDelimiters), 99),
+		),
+		parser.WithASTTransformers(
+			util.Prioritized(NewPassthroughInlineTransformer(e.BlockDelimiters), 0),
 		),
 	)
 

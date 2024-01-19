@@ -15,6 +15,7 @@ func buildTestParser() goldmark.Markdown {
 	md := goldmark.New(
 		goldmark.WithExtensions(NewPassthroughWithDelimiters(
 			/*inline*/ []delimiters{
+        // FIXME: remove block delimiters from this config
 				{
 					Open:  "$$",
 					Close: "$$",
@@ -221,10 +222,10 @@ x = {-b \pm \sqrt{b^2-4ac} \over 2a}$ equation`
 
 func TestExample5(t *testing.T) {
 	input := `Block $$x = {-b \pm \sqrt{b^2-4ac} \over 2a}$$ equation`
-
-	expected := "<p>" + input + "</p>"
+	expected := `<p>Block </p>
+$$x = {-b \pm \sqrt{b^2-4ac} \over 2a}$$
+<p> equation</p>`
 	actual := Parse(t, input)
-
 	c := qt.New(t)
 	c.Assert(actual, qt.Equals, expected)
 }
@@ -233,10 +234,12 @@ func TestExample6(t *testing.T) {
 	input := `Block $$
 x = {-b \pm \sqrt{b^2-4ac} \over 2a}
 $$ equation`
-
-	expected := "<p>" + input + "</p>"
+	expected := `<p>Block </p>
+$$
+x = {-b \pm \sqrt{b^2-4ac} \over 2a}
+$$
+<p> equation</p>`
 	actual := Parse(t, input)
-
 	c := qt.New(t)
 	c.Assert(actual, qt.Equals, expected)
 }
@@ -244,8 +247,10 @@ $$ equation`
 func TestExample7(t *testing.T) {
 	input := `Block $$x = {-b \pm \sqrt{b^2-4ac} \over 2a}
 $$ equation`
-
-	expected := "<p>" + input + "</p>"
+	expected := `<p>Block </p>
+$$x = {-b \pm \sqrt{b^2-4ac} \over 2a}
+$$
+<p> equation</p>`
 	actual := Parse(t, input)
 
 	c := qt.New(t)
@@ -255,8 +260,10 @@ $$ equation`
 func TestExample8(t *testing.T) {
 	input := `Block $$
 x = {-b \pm \sqrt{b^2-4ac} \over 2a}$$ equation`
-
-	expected := "<p>" + input + "</p>"
+	expected := `<p>Block </p>
+$$
+x = {-b \pm \sqrt{b^2-4ac} \over 2a}$$
+<p> equation</p>`
 	actual := Parse(t, input)
 
 	c := qt.New(t)
@@ -309,10 +316,10 @@ a^*=x-b^*$ equation`
 
 func TestExample13(t *testing.T) {
 	input := `Block $$a^*=x-b^*$$ equation`
-
-	expected := "<p>" + input + "</p>"
+	expected := `<p>Block </p>
+$$a^*=x-b^*$$
+<p> equation</p>`
 	actual := Parse(t, input)
-
 	c := qt.New(t)
 	c.Assert(actual, qt.Equals, expected)
 }
@@ -321,10 +328,12 @@ func TestExample14(t *testing.T) {
 	input := `Block $$
 a^*=x-b^*
 $$ equation`
-
-	expected := "<p>" + input + "</p>"
+	expected := `<p>Block </p>
+$$
+a^*=x-b^*
+$$
+<p> equation</p>`
 	actual := Parse(t, input)
-
 	c := qt.New(t)
 	c.Assert(actual, qt.Equals, expected)
 }
@@ -332,10 +341,11 @@ $$ equation`
 func TestExample15(t *testing.T) {
 	input := `Block $$a^*=x-b^*
 $$ equation`
-
-	expected := "<p>" + input + "</p>"
+	expected := `<p>Block </p>
+$$a^*=x-b^*
+$$
+<p> equation</p>`
 	actual := Parse(t, input)
-
 	c := qt.New(t)
 	c.Assert(actual, qt.Equals, expected)
 }
@@ -343,10 +353,11 @@ $$ equation`
 func TestExample16(t *testing.T) {
 	input := `Block $$
 a^*=x-b^*$$ equation`
-
-	expected := "<p>" + input + "</p>"
+	expected := `<p>Block </p>
+$$
+a^*=x-b^*$$
+<p> equation</p>`
 	actual := Parse(t, input)
-
 	c := qt.New(t)
 	c.Assert(actual, qt.Equals, expected)
 }
@@ -397,10 +408,10 @@ a^*=x-b^*\) equation`
 
 func TestExample21(t *testing.T) {
 	input := `Block \[a^*=x-b^*\] equation`
-
-	expected := "<p>" + input + "</p>"
+	expected := `<p>Block </p>
+\[a^*=x-b^*\]
+<p> equation</p>`
 	actual := Parse(t, input)
-
 	c := qt.New(t)
 	c.Assert(actual, qt.Equals, expected)
 }
@@ -409,21 +420,24 @@ func TestExample22(t *testing.T) {
 	input := `Block \[
 a^*=x-b^*
 \] equation`
-
-	expected := "<p>" + input + "</p>"
+	expected := `<p>Block </p>
+\[
+a^*=x-b^*
+\]
+<p> equation</p>`
 	actual := Parse(t, input)
-
 	c := qt.New(t)
 	c.Assert(actual, qt.Equals, expected)
 }
 
 func TestExample23(t *testing.T) {
 	input := `Block \[a^*=x-b^*
-	\] equation`
-
-	expected := "<p>" + input + "</p>"
+\] equation`
+	expected := `<p>Block </p>
+\[a^*=x-b^*
+\]
+<p> equation</p>`
 	actual := Parse(t, input)
-
 	c := qt.New(t)
 	c.Assert(actual, qt.Equals, expected)
 }
@@ -431,8 +445,10 @@ func TestExample23(t *testing.T) {
 func TestExample24(t *testing.T) {
 	input := `Block \[
 a^*=x-b^*\] equation`
-
-	expected := "<p>" + input + "</p>"
+	expected := `<p>Block </p>
+\[
+a^*=x-b^*\]
+<p> equation</p>`
 	actual := Parse(t, input)
 
 	c := qt.New(t)
