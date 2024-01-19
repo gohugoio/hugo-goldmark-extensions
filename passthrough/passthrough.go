@@ -144,7 +144,7 @@ func (s *inlinePassthroughParser) Parse(parent ast.Node, block text.Reader, pc p
 			fencePair = GetFullOpeningDelimiter(s.PassthroughDelimiters, line[2:])
 			if fencePair != nil {
 				// Opening delimiter is escaped, return the escaped opener as plain text
-        // So that the characters are not processed again.
+				// So that the characters are not processed again.
 				block.Advance(2 + len(fencePair.Open))
 				return ast.NewTextSegment(startSegment.WithStop(startSegment.Start + len(fencePair.Open) + 2))
 			}
