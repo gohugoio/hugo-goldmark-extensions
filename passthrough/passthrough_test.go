@@ -15,15 +15,6 @@ func buildTestParser() goldmark.Markdown {
 	md := goldmark.New(
 		goldmark.WithExtensions(NewPassthroughWithDelimiters(
 			/*inline*/ []delimiters{
-        // FIXME: remove block delimiters from this config
-				{
-					Open:  "$$",
-					Close: "$$",
-				},
-				{
-					Open:  "\\[",
-					Close: "\\]",
-				},
 				{
 					Open:  "$",
 					Close: "$",

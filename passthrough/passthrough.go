@@ -171,13 +171,10 @@ func (r *passthroughInlineRenderer) renderRawInline(w util.BufWriter, source []b
 	return ast.WalkContinue, nil
 }
 
-// ---- Block Parser ----
-
 // A PassthroughBlock struct represents a fenced block of raw text to pass
-// through unchanged.
-// There is no built-in "raw text block" node in goldmark, and the closest
-// thing is a code block, which emits `<pre><code>` tags. So we need a new
-// node and a new block renderer.
+// through unchanged. This is not parsed directly, but emitted by an
+// ASTTransformer that splits a paragraph at the point of an inline passthrough
+// with the matching block delimiters.
 type PassthroughBlock struct {
 	ast.BaseBlock
 }
@@ -200,84 +197,6 @@ func NewPassthroughBlock() *PassthroughBlock {
 	return &PassthroughBlock{
 		BaseBlock: ast.BaseBlock{},
 	}
-}
-
-// Block parsing happens across different interface methods, and the initial
-// Open detects the fence pair to use by its opening delimiter. This needs to
-// be preserved for the Continue and Close methods to have access to the
-// corresponding closing delimiter.
-var passthroughParserStateKey = parser.NewContextKey()
-
-type passthroughParserState struct {
-	DetectedDelimiters *delimiters
-}
-
-type blockPassthroughParser struct {
-	PassthroughDelimiters []delimiters
-}
-
-// Implements parserWithDelimiters for blockPassthroughParser
-func (b *blockPassthroughParser) delimiters() []delimiters {
-	return b.PassthroughDelimiters
-}
-
-func NewBlockPassthroughParser(ds []delimiters) parser.BlockParser {
-	return &blockPassthroughParser{
-		PassthroughDelimiters: ds,
-	}
-}
-
-func (b *blockPassthroughParser) Trigger() []byte {
-	return OpenersFirstByte(b.PassthroughDelimiters)
-}
-
-func (b *blockPassthroughParser) Open(parent ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
-	line, segment := reader.PeekLine()
-	fencePair := GetFullOpeningDelimiter(b.PassthroughDelimiters, line)
-	// fencePair == nil can happen if only the first byte of an opening delimiter
-	// matches, but it is not the complete opening delimiter.
-	if fencePair == nil {
-		return nil, parser.NoChildren
-	}
-	node := NewPassthroughBlock()
-	pc.Set(passthroughParserStateKey, &passthroughParserState{DetectedDelimiters: fencePair})
-
-	node.Lines().Append(segment)
-	reader.Advance(segment.Len() - 1)
-	return node, parser.NoChildren
-}
-
-func (b *blockPassthroughParser) Continue(node ast.Node, reader text.Reader, pc parser.Context) parser.State {
-	// currentState cannot be nil or else Continue was triggered without Open
-	// successfully creating a new node.
-	currentState := pc.Get(passthroughParserStateKey).(*passthroughParserState)
-	fencePair := currentState.DetectedDelimiters
-	line, segment := reader.PeekLine()
-
-	closingDelimiterPos := bytes.Index(line, []byte(fencePair.Close))
-	if closingDelimiterPos == -1 { // no closer on this line
-		node.Lines().Append(segment)
-		reader.Advance(segment.Len() - 1)
-		return parser.Continue | parser.NoChildren
-	}
-
-	// This segment spans up to and including the closing delimiter.
-	seg := segment.WithStop(segment.Start + closingDelimiterPos + len(fencePair.Close))
-	node.Lines().Append(seg)
-	reader.Advance(closingDelimiterPos + len(fencePair.Close))
-
-	return parser.Close
-}
-
-func (b *blockPassthroughParser) Close(node ast.Node, reader text.Reader, pc parser.Context) {
-}
-
-func (b *blockPassthroughParser) CanInterruptParagraph() bool {
-	return false
-}
-
-func (b *blockPassthroughParser) CanAcceptIndentedLine() bool {
-	return true
 }
 
 type passthroughBlockRenderer struct {
@@ -310,18 +229,18 @@ var PassthroughInlineTransformer = &passthroughInlineTransformer{}
 func (p *passthroughInlineTransformer) Transform(
 	doc *ast.Document, reader text.Reader, pc parser.Context) {
 
-  ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
-    if !entering {
-      return ast.WalkContinue, nil
-    }
-    // Only match inline passthroughs that are direct descendants of
-    // paragraphs. It's not clear what it would mean to have a block equation
-    // rendered in, say, a list item, so in that case we just leave it as an
-    // inline passthrough.
+	ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+		// Only match inline passthroughs that are direct descendants of
+		// paragraphs. It's not clear what it would mean to have a block equation
+		// rendered in, say, a list item, so in that case we just leave it as an
+		// inline passthrough.
 		if n.Kind() != KindPassthroughInline {
 			return ast.WalkContinue, nil
 		}
-    if n.Parent() == nil || n.Parent().Kind() != ast.KindParagraph {
+		if n.Parent() == nil || n.Parent().Kind() != ast.KindParagraph {
 			return ast.WalkContinue, nil
 		}
 
@@ -329,51 +248,65 @@ func (p *passthroughInlineTransformer) Transform(
 		if !ContainsDelimiters(p.BlockDelimiters, inline.Delimiters) {
 			return ast.WalkContinue, nil
 		}
-    paragraph := n.Parent().(*ast.Paragraph)
-    parent := paragraph.Parent()
+		paragraph := n.Parent().(*ast.Paragraph)
+		parent := paragraph.Parent()
+		var insertionPoint ast.Node
+		insertionPoint = paragraph
 
 		// Split the paragraph at this point
 		precedingParagraph := ast.NewParagraph()
-    for c := paragraph.FirstChild(); c != n && c != nil; c = c.NextSibling() {
-      precedingParagraph.AppendChild(precedingParagraph, c)
-    }
-    for i := 0; i < paragraph.Lines().Len(); i++ {
-      seg := paragraph.Lines().At(i)
-      if seg.Stop > inline.Segment.Start {
-        precedingParagraph.Lines().Append(seg.WithStop(inline.Segment.Start))
-        break
-      }
-      precedingParagraph.Lines().Append(seg)
-    }
-		parent.InsertAfter(parent, paragraph, precedingParagraph)
+		for c := paragraph.FirstChild(); c != n && c != nil; c = c.NextSibling() {
+			precedingParagraph.AppendChild(precedingParagraph, c)
+		}
+		for i := 0; i < paragraph.Lines().Len(); i++ {
+			seg := paragraph.Lines().At(i)
+			if seg.Stop > inline.Segment.Start {
+				newSeg := seg.WithStop(inline.Segment.Start)
+				if newSeg.Len() > 0 {
+					precedingParagraph.Lines().Append(newSeg)
+				}
+				break
+			}
+			precedingParagraph.Lines().Append(seg)
+		}
+		if precedingParagraph.ChildCount() > 0 || precedingParagraph.Lines().Len() > 0 {
+			parent.InsertAfter(parent, insertionPoint, precedingParagraph)
+			insertionPoint = precedingParagraph
+		}
 
 		newBlock := NewPassthroughBlock()
 		newBlock.Lines().Append(inline.Segment)
-		parent.InsertAfter(parent, precedingParagraph, newBlock)
+		parent.InsertAfter(parent, insertionPoint, newBlock)
+		insertionPoint = newBlock
 
 		succeedingParagraph := ast.NewParagraph()
 
-    for c := n.NextSibling(); c != nil; c = c.NextSibling() {
-      succeedingParagraph.AppendChild(succeedingParagraph, c)
-    }
-    for i := 0; i < paragraph.Lines().Len(); i++ {
-      seg := paragraph.Lines().At(i)
-      if seg.Start <= inline.Segment.Start {
-        // We haven't passed the inline passthrough
-        continue
-      }
-      if seg.Start >= inline.Segment.Stop {
-        // We have completely passed the inline passthrough
-        precedingParagraph.Lines().Append(seg)
-        continue
-      }
-      precedingParagraph.Lines().Append(seg.WithStart(inline.Segment.Stop))
-    }
-		parent.InsertAfter(parent, newBlock, succeedingParagraph)
+		for c := n.NextSibling(); c != nil; c = c.NextSibling() {
+			succeedingParagraph.AppendChild(succeedingParagraph, c)
+		}
+		for i := 0; i < paragraph.Lines().Len(); i++ {
+			seg := paragraph.Lines().At(i)
+			if seg.Start <= inline.Segment.Start {
+				// We haven't passed the inline passthrough
+				continue
+			}
+			if seg.Start >= inline.Segment.Stop {
+				// We have completely passed the inline passthrough
+				precedingParagraph.Lines().Append(seg)
+				continue
+			}
+			newSeg := seg.WithStart(inline.Segment.Stop)
+			if newSeg.Len() > 0 {
+				precedingParagraph.Lines().Append(newSeg)
+			}
+		}
+		if succeedingParagraph.ChildCount() > 0 || succeedingParagraph.Lines().Len() > 0 {
+			parent.InsertAfter(parent, insertionPoint, succeedingParagraph)
+		}
 
 		parent.RemoveChild(parent, paragraph)
-    return ast.WalkSkipChildren, nil
-  })
+		return ast.WalkSkipChildren, nil
+	})
 }
 
 func NewPassthroughInlineTransformer(ds []delimiters) parser.ASTTransformer {
@@ -410,8 +343,18 @@ type passthrough struct {
 func NewPassthroughWithDelimiters(
 	InlineDelimiters []delimiters,
 	BlockDelimiters []delimiters) goldmark.Extender {
+	// The parser executes in two phases:
+	//
+	// Phase 1: parse the input with all delimiters treated as inline, and block delimiters
+	// taking precedence over inline delimiters.
+	//
+	// Phase 2: transform the parsed AST to split paragraphs at the point of
+	// inline passthroughs with matching block delimiters.
+	combinedDelimiters := make([]delimiters, len(InlineDelimiters)+len(BlockDelimiters))
+	copy(combinedDelimiters, BlockDelimiters)
+	copy(combinedDelimiters[len(BlockDelimiters):], InlineDelimiters)
 	return &passthrough{
-		InlineDelimiters: InlineDelimiters,
+		InlineDelimiters: combinedDelimiters,
 		BlockDelimiters:  BlockDelimiters,
 	}
 }
@@ -420,9 +363,6 @@ func (e *passthrough) Extend(m goldmark.Markdown) {
 	m.Parser().AddOptions(
 		parser.WithInlineParsers(
 			util.Prioritized(NewInlinePassthroughParser(e.InlineDelimiters), 201),
-		),
-		parser.WithBlockParsers(
-			util.Prioritized(NewBlockPassthroughParser(e.BlockDelimiters), 99),
 		),
 		parser.WithASTTransformers(
 			util.Prioritized(NewPassthroughInlineTransformer(e.BlockDelimiters), 0),
