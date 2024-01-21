@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-type delimiters struct {
+type Delimiters struct {
 	Open  string
 	Close string
 }
@@ -33,10 +33,10 @@ type PassthroughInline struct {
 	Segment text.Segment
 
 	// The matched delimiters
-	Delimiters *delimiters
+	Delimiters *Delimiters
 }
 
-func NewPassthroughInline(segment text.Segment, delimiters *delimiters) *PassthroughInline {
+func NewPassthroughInline(segment text.Segment, delimiters *Delimiters) *PassthroughInline {
 	return &PassthroughInline{
 		Segment:    segment,
 		Delimiters: delimiters,
@@ -66,10 +66,10 @@ func (n *PassthroughInline) Kind() ast.NodeKind {
 }
 
 type inlinePassthroughParser struct {
-	PassthroughDelimiters []delimiters
+	PassthroughDelimiters []Delimiters
 }
 
-func NewInlinePassthroughParser(ds []delimiters) parser.InlineParser {
+func NewInlinePassthroughParser(ds []Delimiters) parser.InlineParser {
 	return &inlinePassthroughParser{
 		PassthroughDelimiters: ds,
 	}
@@ -77,7 +77,7 @@ func NewInlinePassthroughParser(ds []delimiters) parser.InlineParser {
 
 // Determine if the input slice starts with a full valid opening delimiter.
 // If so, returns the delimiter struct, otherwise returns nil.
-func GetFullOpeningDelimiter(delims []delimiters, line []byte) *delimiters {
+func GetFullOpeningDelimiter(delims []Delimiters, line []byte) *Delimiters {
 	for _, d := range delims {
 		if startsWith(line, d.Open) {
 			return &d
@@ -92,7 +92,7 @@ func GetFullOpeningDelimiter(delims []delimiters, line []byte) *delimiters {
 // `Parse` will be executed once for each character that is in this list of
 // allowed trigger characters. Our parse function needs to do some additional
 // checks because Trigger only works for single-byte delimiters.
-func OpenersFirstByte(delims []delimiters) []byte {
+func OpenersFirstByte(delims []Delimiters) []byte {
 	var firstBytes []byte
 	containsBackslash := false
 	for _, d := range delims {
@@ -111,7 +111,7 @@ func OpenersFirstByte(delims []delimiters) []byte {
 }
 
 // Determine if the input list of delimiters contains the given delimiter pair
-func ContainsDelimiters(delims []delimiters, toFind *delimiters) bool {
+func ContainsDelimiters(delims []Delimiters, toFind *Delimiters) bool {
 	for _, d := range delims {
 		if d.Open == toFind.Open && d.Close == toFind.Close {
 			return true
@@ -242,7 +242,7 @@ func (r *passthroughBlockRenderer) renderRawBlock(w util.BufWriter, source []byt
 // inline passthrough after it's parsed, looking for nodes whose delimiters
 // match the block delimiters, and splitting the paragraph at that point.
 type passthroughInlineTransformer struct {
-	BlockDelimiters []delimiters
+	BlockDelimiters []Delimiters
 }
 
 var PassthroughInlineTransformer = &passthroughInlineTransformer{}
@@ -330,7 +330,7 @@ func (p *passthroughInlineTransformer) Transform(
 	})
 }
 
-func NewPassthroughInlineTransformer(ds []delimiters) parser.ASTTransformer {
+func NewPassthroughInlineTransformer(ds []Delimiters) parser.ASTTransformer {
 	return &passthroughInlineTransformer{
 		BlockDelimiters: ds,
 	}
@@ -357,13 +357,13 @@ func NewPassthroughBlockRenderer() renderer.NodeRenderer {
 // ---- Extension and config ----
 
 type passthrough struct {
-	InlineDelimiters []delimiters
-	BlockDelimiters  []delimiters
+	InlineDelimiters []Delimiters
+	BlockDelimiters  []Delimiters
 }
 
 func NewPassthroughWithDelimiters(
-	InlineDelimiters []delimiters,
-	BlockDelimiters []delimiters) goldmark.Extender {
+	InlineDelimiters []Delimiters,
+	BlockDelimiters []Delimiters) goldmark.Extender {
 	// The parser executes in two phases:
 	//
 	// Phase 1: parse the input with all delimiters treated as inline, and block delimiters
@@ -371,7 +371,7 @@ func NewPassthroughWithDelimiters(
 	//
 	// Phase 2: transform the parsed AST to split paragraphs at the point of
 	// inline passthroughs with matching block delimiters.
-	combinedDelimiters := make([]delimiters, len(InlineDelimiters)+len(BlockDelimiters))
+	combinedDelimiters := make([]Delimiters, len(InlineDelimiters)+len(BlockDelimiters))
 	copy(combinedDelimiters, BlockDelimiters)
 	copy(combinedDelimiters[len(BlockDelimiters):], InlineDelimiters)
 	return &passthrough{
