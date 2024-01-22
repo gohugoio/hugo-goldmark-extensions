@@ -247,86 +247,71 @@ type passthroughInlineTransformer struct {
 
 var PassthroughInlineTransformer = &passthroughInlineTransformer{}
 
+// Note, this transformer destroys the RawText attributes of the paragraph
+// nodes that it transforms. However, this does not seem to have an impact on
+// rendering.
 func (p *passthroughInlineTransformer) Transform(
 	doc *ast.Document, reader text.Reader, pc parser.Context) {
 
 	ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
-		if !entering {
-			return ast.WalkContinue, nil
-		}
-		// Only match inline passthroughs that are direct descendants of
-		// paragraphs. It's not clear what it would mean to have a block equation
-		// rendered in, say, a list item, so in that case we just leave it as an
-		// inline passthrough.
-		if n.Kind() != KindPassthroughInline {
-			return ast.WalkContinue, nil
-		}
-		if n.Parent() == nil || n.Parent().Kind() != ast.KindParagraph {
+		// Anchor on paragraphs
+		if n.Kind() != ast.KindParagraph || !entering {
 			return ast.WalkContinue, nil
 		}
 
-		inline := n.(*PassthroughInline)
-		if !ContainsDelimiters(p.BlockDelimiters, inline.Delimiters) {
-			return ast.WalkContinue, nil
-		}
-		paragraph := n.Parent().(*ast.Paragraph)
-		parent := paragraph.Parent()
-		var insertionPoint ast.Node
-		insertionPoint = paragraph
-
-		// Split the paragraph at this point
-		precedingParagraph := ast.NewParagraph()
-		for c := paragraph.FirstChild(); c != n && c != nil; c = c.NextSibling() {
-			precedingParagraph.AppendChild(precedingParagraph, c)
-		}
-		for i := 0; i < paragraph.Lines().Len(); i++ {
-			seg := paragraph.Lines().At(i)
-			if seg.Stop > inline.Segment.Start {
-				newSeg := seg.WithStop(inline.Segment.Start)
-				if newSeg.Len() > 0 {
-					precedingParagraph.Lines().Append(newSeg)
-				}
+		// If no direct children are passthroughs, skip it.
+		foundInlinePassthrough := false
+		for c := n.FirstChild(); c != nil; c = c.NextSibling() {
+			if c.Kind() == KindPassthroughInline {
+				foundInlinePassthrough = true
 				break
 			}
-			precedingParagraph.Lines().Append(seg)
 		}
-		if precedingParagraph.ChildCount() > 0 || precedingParagraph.Lines().Len() > 0 {
-			parent.InsertAfter(parent, insertionPoint, precedingParagraph)
-			insertionPoint = precedingParagraph
+		if !foundInlinePassthrough {
+			return ast.WalkContinue, nil
 		}
 
-		newBlock := NewPassthroughBlock()
-		newBlock.Lines().Append(inline.Segment)
-		parent.InsertAfter(parent, insertionPoint, newBlock)
-		insertionPoint = newBlock
+		parent := n.Parent()
+		currentParagraph := ast.NewParagraph()
+		// AppendChild breaks the link between the node and its siblings, so we
+		// need to manually track the current and next node.
+		currentNode := n.FirstChild()
+		insertionPoint := n
 
-		succeedingParagraph := ast.NewParagraph()
+		for currentNode != nil {
+			nextNode := currentNode.NextSibling()
+			if currentNode.Kind() != KindPassthroughInline {
+				currentParagraph.AppendChild(currentParagraph, currentNode)
+				currentNode = nextNode
+			} else if currentNode.Kind() == KindPassthroughInline {
+				inline := currentNode.(*PassthroughInline)
 
-		for c := n.NextSibling(); c != nil; c = c.NextSibling() {
-			succeedingParagraph.AppendChild(succeedingParagraph, c)
-		}
-		for i := 0; i < paragraph.Lines().Len(); i++ {
-			seg := paragraph.Lines().At(i)
-			if seg.Start <= inline.Segment.Start {
-				// We haven't passed the inline passthrough
-				continue
+				// Only split into a new block if the delimiters are block delimiters
+				if !ContainsDelimiters(p.BlockDelimiters, inline.Delimiters) {
+					currentParagraph.AppendChild(currentParagraph, currentNode)
+					currentNode = nextNode
+					continue
+				}
+
+				newBlock := NewPassthroughBlock()
+				newBlock.Lines().Append(inline.Segment)
+				if len(currentParagraph.Text(reader.Source())) > 0 {
+					parent.InsertAfter(parent, insertionPoint, currentParagraph)
+					insertionPoint = currentParagraph
+				}
+				parent.InsertAfter(parent, insertionPoint, newBlock)
+				insertionPoint = newBlock
+				currentParagraph = ast.NewParagraph()
+				currentNode = nextNode
 			}
-			if seg.Start >= inline.Segment.Stop {
-				// We have completely passed the inline passthrough
-				precedingParagraph.Lines().Append(seg)
-				continue
-			}
-			newSeg := seg.WithStart(inline.Segment.Stop)
-			if newSeg.Len() > 0 {
-				precedingParagraph.Lines().Append(newSeg)
-			}
-		}
-		if succeedingParagraph.ChildCount() > 0 || succeedingParagraph.Lines().Len() > 0 {
-			parent.InsertAfter(parent, insertionPoint, succeedingParagraph)
 		}
 
-		parent.RemoveChild(parent, paragraph)
-		return ast.WalkSkipChildren, nil
+		if currentParagraph.ChildCount() > 0 {
+			parent.InsertAfter(parent, insertionPoint, currentParagraph)
+		}
+
+		parent.RemoveChild(parent, n)
+		return ast.WalkContinue, nil
 	})
 }
 

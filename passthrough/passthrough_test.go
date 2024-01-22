@@ -14,7 +14,7 @@ import (
 func buildTestParser() goldmark.Markdown {
 	md := goldmark.New(
 		goldmark.WithExtensions(NewPassthroughWithDelimiters(
-			/*inline*/ []delimiters{
+			/*inline*/ []Delimiters{
 				{
 					Open:  "$",
 					Close: "$",
@@ -24,7 +24,7 @@ func buildTestParser() goldmark.Markdown {
 					Close: "\\)",
 				},
 			},
-			/*block*/ []delimiters{
+			/*block*/ []Delimiters{
 				{
 					Open:  "$$",
 					Close: "$$",
@@ -503,6 +503,18 @@ L(p,w_i) &=& \dfrac{1}{N}\Sigma_{i=1}^N(\underbrace{f_r(x_2
 	expected := input
 	actual := Parse(t, input)
 
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestRepeatedBlockNodesInOneParagraph(t *testing.T) {
+	input := `Block $$x$$ equation $$y$$.`
+	expected := `<p>Block </p>
+$$x$$
+<p> equation </p>
+$$y$$
+<p>.</p>`
+	actual := Parse(t, input)
 	c := qt.New(t)
 	c.Assert(actual, qt.Equals, expected)
 }
