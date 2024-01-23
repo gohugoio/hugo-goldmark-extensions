@@ -44,9 +44,9 @@ $a^\*=x-b^\*$
 There are two types of delimiters, inline and block:
 
 - Text within and including inline delimiters appears inline with the surrounding text.
-- Text within and including block delimiters appears between adjacent block elements. When working with LaTeX this is known as "display" mode.
+- Text within and including block delimiters appears between adjacent block elements. When working with LaTeX this is known as display mode.
 
-As shown below, you must specify zero or more inline and block delimiter pairs&mdash; there are no default values.
+As shown below, you must specify zero or more inline and block delimiter pairs&mdash;there are no default values.
 
 ### Usage
 
