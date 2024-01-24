@@ -518,3 +518,31 @@ $$y$$
 	c := qt.New(t)
 	c.Assert(actual, qt.Equals, expected)
 }
+
+func TestExample27(t *testing.T) {
+	input := `Block $$a^*=x-b^*$$ equation
+
+Inline $a^*=x-b^*$ equation`
+	expected := `<p>Block </p>
+$$a^*=x-b^*$$
+<p> equation</p>
+<p>Inline $a^*=x-b^*$ equation</p>`
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestExample28(t *testing.T) {
+	input := `Inline $a^*=x-b^*$ equation
+
+Block $$a^*=x-b^*$$ equation`
+	expected := `<p>Inline $a^*=x-b^*$ equation</p>
+<p>Block </p>
+$$a^*=x-b^*$$
+<p> equation</p>`
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
