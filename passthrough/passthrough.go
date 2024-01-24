@@ -36,7 +36,7 @@ type PassthroughInline struct {
 	Delimiters *Delimiters
 }
 
-func NewPassthroughInline(segment text.Segment, delimiters *Delimiters) *PassthroughInline {
+func newPassthroughInline(segment text.Segment, delimiters *Delimiters) *PassthroughInline {
 	return &PassthroughInline{
 		Segment:    segment,
 		Delimiters: delimiters,
@@ -69,7 +69,7 @@ type inlinePassthroughParser struct {
 	PassthroughDelimiters []Delimiters
 }
 
-func NewInlinePassthroughParser(ds []Delimiters) parser.InlineParser {
+func newInlinePassthroughParser(ds []Delimiters) parser.InlineParser {
 	return &inlinePassthroughParser{
 		PassthroughDelimiters: ds,
 	}
@@ -77,7 +77,7 @@ func NewInlinePassthroughParser(ds []Delimiters) parser.InlineParser {
 
 // Determine if the input slice starts with a full valid opening delimiter.
 // If so, returns the delimiter struct, otherwise returns nil.
-func GetFullOpeningDelimiter(delims []Delimiters, line []byte) *Delimiters {
+func getFullOpeningDelimiter(delims []Delimiters, line []byte) *Delimiters {
 	for _, d := range delims {
 		if startsWith(line, d.Open) {
 			return &d
@@ -92,7 +92,7 @@ func GetFullOpeningDelimiter(delims []Delimiters, line []byte) *Delimiters {
 // `Parse` will be executed once for each character that is in this list of
 // allowed trigger characters. Our parse function needs to do some additional
 // checks because Trigger only works for single-byte delimiters.
-func OpenersFirstByte(delims []Delimiters) []byte {
+func openersFirstByte(delims []Delimiters) []byte {
 	var firstBytes []byte
 	containsBackslash := false
 	for _, d := range delims {
@@ -111,7 +111,7 @@ func OpenersFirstByte(delims []Delimiters) []byte {
 }
 
 // Determine if the input list of delimiters contains the given delimiter pair
-func ContainsDelimiters(delims []Delimiters, toFind *Delimiters) bool {
+func containsDelimiters(delims []Delimiters, toFind *Delimiters) bool {
 	for _, d := range delims {
 		if d.Open == toFind.Open && d.Close == toFind.Close {
 			return true
@@ -122,7 +122,7 @@ func ContainsDelimiters(delims []Delimiters, toFind *Delimiters) bool {
 }
 
 func (s *inlinePassthroughParser) Trigger() []byte {
-	return OpenersFirstByte(s.PassthroughDelimiters)
+	return openersFirstByte(s.PassthroughDelimiters)
 }
 
 func (s *inlinePassthroughParser) Parse(parent ast.Node, block text.Reader, pc parser.Context) ast.Node {
@@ -132,7 +132,7 @@ func (s *inlinePassthroughParser) Parse(parent ast.Node, block text.Reader, pc p
 	// of multiple triggers with parser.Context state saved between calls.
 	line, startSegment := block.PeekLine()
 
-	fencePair := GetFullOpeningDelimiter(s.PassthroughDelimiters, line)
+	fencePair := getFullOpeningDelimiter(s.PassthroughDelimiters, line)
 	// fencePair == nil can happen if only the first byte of an opening delimiter
 	// matches, but it is not the complete opening delimiter. The trigger causes
 	// this Parse function to execute, but the trigger interface is limited to
@@ -141,7 +141,7 @@ func (s *inlinePassthroughParser) Parse(parent ast.Node, block text.Reader, pc p
 	// double-backslash. In this case, we advance and return nil.
 	if fencePair == nil {
 		if len(line) > 2 && line[0] == '\\' && line[1] == '\\' {
-			fencePair = GetFullOpeningDelimiter(s.PassthroughDelimiters, line[2:])
+			fencePair = getFullOpeningDelimiter(s.PassthroughDelimiters, line[2:])
 			if fencePair != nil {
 				// Opening delimiter is escaped, return the escaped opener as plain text
 				// So that the characters are not processed again.
@@ -178,7 +178,7 @@ func (s *inlinePassthroughParser) Parse(parent ast.Node, block text.Reader, pc p
 		}
 
 		block.Advance(closingDelimiterPos + len(fencePair.Close))
-		return NewPassthroughInline(seg, fencePair)
+		return newPassthroughInline(seg, fencePair)
 	}
 }
 
@@ -213,8 +213,8 @@ func (n *PassthroughBlock) Kind() ast.NodeKind {
 	return KindPassthroughBlock
 }
 
-// NewPassthroughBlock return a new PassthroughBlock node.
-func NewPassthroughBlock() *PassthroughBlock {
+// newPassthroughBlock return a new PassthroughBlock node.
+func newPassthroughBlock() *PassthroughBlock {
 	return &PassthroughBlock{
 		BaseBlock: ast.BaseBlock{},
 	}
@@ -247,8 +247,8 @@ type passthroughInlineTransformer struct {
 
 var PassthroughInlineTransformer = &passthroughInlineTransformer{}
 
-const PASSTHROUGH_MARKED_FOR_DELETION = "passthrough_marked_for_deletion"
-const PASSTHROUGH_PROCESSED = "passthrough_processed"
+const passthroughMarkedForDeletion = "passthrough_marked_for_deletion"
+const passthroughProcessed = "passthrough_processed"
 
 // Note, this transformer destroys the RawText attributes of the paragraph
 // nodes that it transforms. However, this does not seem to have an impact on
@@ -268,7 +268,7 @@ func (p *passthroughInlineTransformer) Transform(
 			return ast.WalkContinue, nil
 		}
 
-		val, found := n.AttributeString(PASSTHROUGH_PROCESSED)
+		val, found := n.AttributeString(passthroughProcessed)
 		if found && val == "true" {
 			return ast.WalkContinue, nil
 		}
@@ -301,19 +301,19 @@ func (p *passthroughInlineTransformer) Transform(
 				inline := currentNode.(*PassthroughInline)
 
 				// Only split into a new block if the delimiters are block delimiters
-				if !ContainsDelimiters(p.BlockDelimiters, inline.Delimiters) {
+				if !containsDelimiters(p.BlockDelimiters, inline.Delimiters) {
 					currentParagraph.AppendChild(currentParagraph, currentNode)
 					currentNode = nextNode
 					continue
 				}
 
-				newBlock := NewPassthroughBlock()
+				newBlock := newPassthroughBlock()
 				newBlock.Lines().Append(inline.Segment)
 				if len(currentParagraph.Text(reader.Source())) > 0 {
 					parent.InsertAfter(parent, insertionPoint, currentParagraph)
 					// Since we're not removing the original paragraph, we need to ensure
 					// that this paragraph is not re-processed as the walk continues
-					currentParagraph.SetAttributeString(PASSTHROUGH_PROCESSED, "true")
+					currentParagraph.SetAttributeString(passthroughProcessed, "true")
 					insertionPoint = currentParagraph
 				}
 				parent.InsertAfter(parent, insertionPoint, newBlock)
@@ -327,12 +327,12 @@ func (p *passthroughInlineTransformer) Transform(
 			parent.InsertAfter(parent, insertionPoint, currentParagraph)
 			// Since we're not removing the original paragraph, we need to ensure
 			// that this paragraph is not re-processed as the walk continues
-			currentParagraph.SetAttributeString(PASSTHROUGH_PROCESSED, "true")
+			currentParagraph.SetAttributeString(passthroughProcessed, "true")
 		}
 
 		// At this point, we don't remove the original paragraph, but mark it
 		// for removal in the second walk.
-		n.SetAttributeString(PASSTHROUGH_MARKED_FOR_DELETION, "true")
+		n.SetAttributeString(passthroughMarkedForDeletion, "true")
 		return ast.WalkContinue, nil
 	})
 
@@ -347,7 +347,7 @@ func (p *passthroughInlineTransformer) Transform(
 			// destroying its link to the next sibling.
 			next := c.NextSibling()
 			if c.Kind() == ast.KindParagraph {
-				val, found := c.AttributeString(PASSTHROUGH_MARKED_FOR_DELETION)
+				val, found := c.AttributeString(passthroughMarkedForDeletion)
 				if found && val == "true" {
 					n.RemoveChild(n, c)
 				}
@@ -359,7 +359,7 @@ func (p *passthroughInlineTransformer) Transform(
 	})
 }
 
-func NewPassthroughInlineTransformer(ds []Delimiters) parser.ASTTransformer {
+func newPassthroughInlineTransformer(ds []Delimiters) parser.ASTTransformer {
 	return &passthroughInlineTransformer{
 		BlockDelimiters: ds,
 	}
@@ -375,7 +375,7 @@ func (r *passthroughBlockRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRe
 	reg.Register(KindPassthroughBlock, r.renderRawBlock)
 }
 
-func NewPassthroughInlineRenderer() renderer.NodeRenderer {
+func newPassthroughInlineRenderer() renderer.NodeRenderer {
 	return &passthroughInlineRenderer{}
 }
 
@@ -412,15 +412,15 @@ func NewPassthroughWithDelimiters(
 func (e *passthrough) Extend(m goldmark.Markdown) {
 	m.Parser().AddOptions(
 		parser.WithInlineParsers(
-			util.Prioritized(NewInlinePassthroughParser(e.InlineDelimiters), 201),
+			util.Prioritized(newInlinePassthroughParser(e.InlineDelimiters), 201),
 		),
 		parser.WithASTTransformers(
-			util.Prioritized(NewPassthroughInlineTransformer(e.BlockDelimiters), 0),
+			util.Prioritized(newPassthroughInlineTransformer(e.BlockDelimiters), 0),
 		),
 	)
 
 	m.Renderer().AddOptions(renderer.WithNodeRenderers(
-		util.Prioritized(NewPassthroughInlineRenderer(), 101),
+		util.Prioritized(newPassthroughInlineRenderer(), 101),
 		util.Prioritized(NewPassthroughBlockRenderer(), 99),
 	))
 }
