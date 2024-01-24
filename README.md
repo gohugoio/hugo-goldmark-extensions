@@ -1,7 +1,6 @@
 # Hugo Goldmark Extensions
 
 [![Tests on Linux, MacOS and Windows](https://github.com/gohugoio/hugo-goldmark-extensions/workflows/Test/badge.svg)](https://github.com/gohugoio/hugo-goldmark-extensions/actions?query=workflow:Test)
-[![GoDoc](https://godoc.org/github.com/gohugoio/hugo-goldmark-extensions?status.svg)](https://godoc.org/github.com/gohugoio/hugo-goldmark-extensions)
 
 This repository houses a collection of [Goldmark] extensions created by the [Hugo] community, focusing on expanding Hugo's markdown functionality.
 
