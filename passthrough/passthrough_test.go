@@ -546,3 +546,38 @@ $$a^*=x-b^*$$
 	c := qt.New(t)
 	c.Assert(actual, qt.Equals, expected)
 }
+
+func BenchmarkWithAndWithoutPassthrough(b *testing.B) {
+	const input = `
+## Block
+	
+$$
+a^*=x-b^*
+$$
+
+## Inline
+
+Inline $a^*=x-b^*$ equation.`
+
+	b.Run("without passthrough", func(b *testing.B) {
+		md := goldmark.New()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			var buf bytes.Buffer
+			if err := md.Convert([]byte(input), &buf); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+
+	b.Run("with passthrough", func(b *testing.B) {
+		md := buildTestParser()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			var buf bytes.Buffer
+			if err := md.Convert([]byte(input), &buf); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+}
