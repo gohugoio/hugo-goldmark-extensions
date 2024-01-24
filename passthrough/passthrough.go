@@ -247,15 +247,29 @@ type passthroughInlineTransformer struct {
 
 var PassthroughInlineTransformer = &passthroughInlineTransformer{}
 
+const PASSTHROUGH_MARKED_FOR_DELETION = "passthrough_marked_for_deletion"
+const PASSTHROUGH_PROCESSED = "passthrough_processed"
+
 // Note, this transformer destroys the RawText attributes of the paragraph
 // nodes that it transforms. However, this does not seem to have an impact on
 // rendering.
 func (p *passthroughInlineTransformer) Transform(
 	doc *ast.Document, reader text.Reader, pc parser.Context) {
-
+	// Goldmark's walking algorithm is simplistic, and doesn't handle the
+	// possibility of replacing the current node being walked with a new node. So
+	// as a workaround, we split the walk in two. The first walk inserts new
+	// nodes, and marks the original nodes for deletion. The second walk deletes
+	// the marked nodes. To avoid an infinite loop, we also need to mark the
+	// newly inserted nodes as "processed" so that they are not re-processed as
+	// the walk continues.
 	ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
 		// Anchor on paragraphs
 		if n.Kind() != ast.KindParagraph || !entering {
+			return ast.WalkContinue, nil
+		}
+
+		val, found := n.AttributeString(PASSTHROUGH_PROCESSED)
+		if found && val == "true" {
 			return ast.WalkContinue, nil
 		}
 
@@ -297,6 +311,9 @@ func (p *passthroughInlineTransformer) Transform(
 				newBlock.Lines().Append(inline.Segment)
 				if len(currentParagraph.Text(reader.Source())) > 0 {
 					parent.InsertAfter(parent, insertionPoint, currentParagraph)
+					// Since we're not removing the original paragraph, we need to ensure
+					// that this paragraph is not re-processed as the walk continues
+					currentParagraph.SetAttributeString(PASSTHROUGH_PROCESSED, "true")
 					insertionPoint = currentParagraph
 				}
 				parent.InsertAfter(parent, insertionPoint, newBlock)
@@ -308,9 +325,36 @@ func (p *passthroughInlineTransformer) Transform(
 
 		if currentParagraph.ChildCount() > 0 {
 			parent.InsertAfter(parent, insertionPoint, currentParagraph)
+			// Since we're not removing the original paragraph, we need to ensure
+			// that this paragraph is not re-processed as the walk continues
+			currentParagraph.SetAttributeString(PASSTHROUGH_PROCESSED, "true")
 		}
 
-		parent.RemoveChild(parent, n)
+		// At this point, we don't remove the original paragraph, but mark it
+		// for removal in the second walk.
+		n.SetAttributeString(PASSTHROUGH_MARKED_FOR_DELETION, "true")
+		return ast.WalkContinue, nil
+	})
+
+	// Now delete any marked nodes
+	ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+
+		for c := n.FirstChild(); c != nil; {
+			// Have to eagerly fetch this because `c` may be removed from the tree,
+			// destroying its link to the next sibling.
+			next := c.NextSibling()
+			if c.Kind() == ast.KindParagraph {
+				val, found := c.AttributeString(PASSTHROUGH_MARKED_FOR_DELETION)
+				if found && val == "true" {
+					n.RemoveChild(n, c)
+				}
+			}
+			c = next
+		}
+
 		return ast.WalkContinue, nil
 	})
 }
