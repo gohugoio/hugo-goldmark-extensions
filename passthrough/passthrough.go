@@ -391,8 +391,8 @@ type passthrough struct {
 }
 
 func NewPassthroughWithDelimiters(
-	InlineDelimiters []Delimiters,
-	BlockDelimiters []Delimiters) goldmark.Extender {
+	inlineDelimiters []Delimiters,
+	blockDelimiters []Delimiters) goldmark.Extender {
 	// The parser executes in two phases:
 	//
 	// Phase 1: parse the input with all delimiters treated as inline, and block delimiters
@@ -400,12 +400,12 @@ func NewPassthroughWithDelimiters(
 	//
 	// Phase 2: transform the parsed AST to split paragraphs at the point of
 	// inline passthroughs with matching block delimiters.
-	combinedDelimiters := make([]Delimiters, len(InlineDelimiters)+len(BlockDelimiters))
-	copy(combinedDelimiters, BlockDelimiters)
-	copy(combinedDelimiters[len(BlockDelimiters):], InlineDelimiters)
+	combinedDelimiters := make([]Delimiters, len(inlineDelimiters)+len(blockDelimiters))
+	copy(combinedDelimiters, blockDelimiters)
+	copy(combinedDelimiters[len(blockDelimiters):], inlineDelimiters)
 	return &passthrough{
 		InlineDelimiters: combinedDelimiters,
-		BlockDelimiters:  BlockDelimiters,
+		BlockDelimiters:  blockDelimiters,
 	}
 }
 
