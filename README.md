@@ -13,6 +13,8 @@ This repository houses a collection of [Goldmark] extensions created by the [Hug
 
 ## Passthrough extension
 
+[![GoDoc](https://godoc.org/github.com/gohugoio/hugo-goldmark-extensions/passthrough?status.svg)](https://godoc.org/github.com/gohugoio/hugo-goldmark-extensions/passthrough)
+
 Use this extension to preserve raw markdown within delimited snippets of text. This was initially developed to support [LaTeX] mixed with markdown, specifically mathematical expressions and equations.
 
 For example, to preserve raw markdown for inline snippets delimited by the `$` character:
