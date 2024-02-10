@@ -1,15 +1,37 @@
 package superscript
 
 import (
-	"github.com/gohugoio/hugo-goldmark-extensions/superscript/ast"
 	"github.com/yuin/goldmark"
-	gast "github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/renderer"
 	"github.com/yuin/goldmark/renderer/html"
 	"github.com/yuin/goldmark/text"
 	"github.com/yuin/goldmark/util"
 )
+
+// A Superscript struct represents a superscript text.
+type Superscript struct {
+	ast.BaseInline
+}
+
+// Dump implements Node.Dump.
+func (n *Superscript) Dump(source []byte, level int) {
+	ast.DumpHelper(n, source, level, nil, nil)
+}
+
+// KindSuperscript is a NodeKind of the Superscript node.
+var KindSuperscript = ast.NewNodeKind("Superscript")
+
+// Kind implements Node.Kind.
+func (n *Superscript) Kind() ast.NodeKind {
+	return KindSuperscript
+}
+
+// NewSuperscript returns a new Superscript node.
+func NewSuperscript() *Superscript {
+	return &Superscript{}
+}
 
 type superscriptDelimiterProcessor struct {
 }
@@ -22,8 +44,8 @@ func (p *superscriptDelimiterProcessor) CanOpenCloser(opener, closer *parser.Del
 	return opener.Char == closer.Char
 }
 
-func (p *superscriptDelimiterProcessor) OnMatch(int) gast.Node {
-	return ast.NewSuperscript()
+func (p *superscriptDelimiterProcessor) OnMatch(int) ast.Node {
+	return NewSuperscript()
 }
 
 var defaultSuperscriptDelimiterProcessor = &superscriptDelimiterProcessor{}
@@ -43,7 +65,7 @@ func (s *superscriptParser) Trigger() []byte {
 	return []byte{'^'}
 }
 
-func (s *superscriptParser) Parse(_ gast.Node, block text.Reader, pc parser.Context) gast.Node {
+func (s *superscriptParser) Parse(_ ast.Node, block text.Reader, pc parser.Context) ast.Node {
 	before := block.PrecendingCharacter()
 	line, segment := block.PeekLine()
 	node := parser.ScanDelimiter(line, before, 1, defaultSuperscriptDelimiterProcessor)
@@ -71,8 +93,8 @@ func (s *superscriptParser) CloseBlock() {
 	// nothing to do
 }
 
-// HTMLRenderer is a renderer.NodeRenderer implementation that
-// renders Superscript nodes.
+// HTMLRenderer is a renderer.NodeRenderer implementation that renders
+// Superscript nodes.
 type HTMLRenderer struct {
 	html.Config
 }
@@ -90,14 +112,14 @@ func NewSuperscriptHTMLRenderer(opts ...html.Option) renderer.NodeRenderer {
 
 // RegisterFuncs implements renderer.NodeRenderer.RegisterFuncs.
 func (r *HTMLRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
-	reg.Register(ast.KindSuperscript, r.renderSuperscript)
+	reg.Register(KindSuperscript, r.renderSuperscript)
 }
 
 // AttributeFilter defines attribute names which dd elements can have.
 var AttributeFilter = html.GlobalAttributeFilter
 
 func (r *HTMLRenderer) renderSuperscript(
-	w util.BufWriter, _ []byte, n gast.Node, entering bool) (gast.WalkStatus, error) {
+	w util.BufWriter, _ []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
 	if entering {
 		if n.Attributes() != nil {
 			_, _ = w.WriteString("<sup")
@@ -109,16 +131,13 @@ func (r *HTMLRenderer) renderSuperscript(
 	} else {
 		_, _ = w.WriteString("</sup>")
 	}
-	return gast.WalkContinue, nil
+	return ast.WalkContinue, nil
 }
 
-type superscript struct {
-}
+// Extension allows you to use a superscript expression like 'x^2^'.
+var Extension = &Superscript{}
 
-// Superscript is an extension that allows you to use a superscript expression like 'x^2^'.
-var Superscript = &superscript{}
-
-func (e *superscript) Extend(m goldmark.Markdown) {
+func (n *Superscript) Extend(m goldmark.Markdown) {
 	m.Parser().AddOptions(parser.WithInlineParsers(
 		util.Prioritized(NewSuperscriptParser(), 600),
 	))
