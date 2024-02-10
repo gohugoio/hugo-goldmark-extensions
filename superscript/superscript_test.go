@@ -18,13 +18,13 @@ func buildTestParser() goldmark.Markdown {
 	return markdown
 }
 
-func TestSuperscript(t *testing.T) {
+func Test(t *testing.T) {
 	markdown := buildTestParser()
 	testutil.DoTestCaseFile(markdown, "testCases.txt", t, testutil.ParseCliCaseArg()...)
 }
 
 func TestDump(t *testing.T) {
-	input := "Parabola: f(x) = x^2^ . Amazing"
+	input := "Parabola: f(x) = x^2^. Amazing"
 	markdown := buildTestParser()
 	root := markdown.Parser().Parse(text.NewReader([]byte(input)))
 	root.Dump([]byte(input), 0)
@@ -60,6 +60,7 @@ This formula contains one superscript: f(x) = x^2^ .`
 	})
 }
 
+/*
 func BenchmarkWithAndWithoutThreeSuperscript(b *testing.B) {
 	const input = `
 ## Pythagoras
@@ -88,3 +89,4 @@ This formula contains three superscripts: a^2^ + b^2^=c^2^ .`
 		}
 	})
 }
+*/

@@ -139,9 +139,9 @@ var Extension = &Superscript{}
 
 func (n *Superscript) Extend(m goldmark.Markdown) {
 	m.Parser().AddOptions(parser.WithInlineParsers(
-		util.Prioritized(NewParser(), 600),
+		util.Prioritized(NewParser(), 550),
 	))
 	m.Renderer().AddOptions(renderer.WithNodeRenderers(
-		util.Prioritized(NewHTMLRenderer(), 600),
+		util.Prioritized(NewHTMLRenderer(), 550),
 	))
 }
