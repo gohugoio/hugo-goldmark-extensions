@@ -10,7 +10,7 @@ import (
 	"github.com/yuin/goldmark/util"
 )
 
-// A Superscript struct represents a superscript text.
+// A Superscript struct represents a superscript text segment.
 type Superscript struct {
 	ast.BaseInline
 }
@@ -20,55 +20,55 @@ func (n *Superscript) Dump(source []byte, level int) {
 	ast.DumpHelper(n, source, level, nil, nil)
 }
 
-// KindSuperscript is a NodeKind of the Superscript node.
-var KindSuperscript = ast.NewNodeKind("Superscript")
+// Kind is a NodeKind of the Superscript node.
+var Kind = ast.NewNodeKind("Superscript")
 
 // Kind implements Node.Kind.
 func (n *Superscript) Kind() ast.NodeKind {
-	return KindSuperscript
+	return Kind
 }
 
-// NewSuperscript returns a new Superscript node.
-func NewSuperscript() *Superscript {
+// New returns a new Superscript node.
+func New() *Superscript {
 	return &Superscript{}
 }
 
-type superscriptDelimiterProcessor struct {
+type delimiterProcessor struct {
 }
 
-func (p *superscriptDelimiterProcessor) IsDelimiter(b byte) bool {
+func (p *delimiterProcessor) IsDelimiter(b byte) bool {
 	return b == '^'
 }
 
-func (p *superscriptDelimiterProcessor) CanOpenCloser(opener, closer *parser.Delimiter) bool {
+func (p *delimiterProcessor) CanOpenCloser(opener, closer *parser.Delimiter) bool {
 	return opener.Char == closer.Char
 }
 
-func (p *superscriptDelimiterProcessor) OnMatch(int) ast.Node {
-	return NewSuperscript()
+func (p *delimiterProcessor) OnMatch(int) ast.Node {
+	return New()
 }
 
-var defaultSuperscriptDelimiterProcessor = &superscriptDelimiterProcessor{}
+var defaultDelimiterProcessor = &delimiterProcessor{}
 
-type superscriptParser struct {
+type Parser struct {
 }
 
-var defaultSuperscriptParser = &superscriptParser{}
+var defaultParser = &Parser{}
 
-// NewSuperscriptParser return a new InlineParser that parses
+// NewParser returns a new InlineParser that parses
 // superscript expressions.
-func NewSuperscriptParser() parser.InlineParser {
-	return defaultSuperscriptParser
+func NewParser() parser.InlineParser {
+	return defaultParser
 }
 
-func (s *superscriptParser) Trigger() []byte {
+func (s *Parser) Trigger() []byte {
 	return []byte{'^'}
 }
 
-func (s *superscriptParser) Parse(_ ast.Node, block text.Reader, pc parser.Context) ast.Node {
+func (s *Parser) Parse(_ ast.Node, block text.Reader, pc parser.Context) ast.Node {
 	before := block.PrecendingCharacter()
 	line, segment := block.PeekLine()
-	node := parser.ScanDelimiter(line, before, 1, defaultSuperscriptDelimiterProcessor)
+	node := parser.ScanDelimiter(line, before, 1, defaultDelimiterProcessor)
 	if node == nil {
 		return nil
 	}
@@ -89,7 +89,7 @@ func (s *superscriptParser) Parse(_ ast.Node, block text.Reader, pc parser.Conte
 	return node
 }
 
-func (s *superscriptParser) CloseBlock() {
+func (s *Parser) CloseBlock() {
 	// nothing to do
 }
 
@@ -99,8 +99,8 @@ type HTMLRenderer struct {
 	html.Config
 }
 
-// NewSuperscriptHTMLRenderer returns a new SuperscriptHTMLRenderer.
-func NewSuperscriptHTMLRenderer(opts ...html.Option) renderer.NodeRenderer {
+// NewHTMLRenderer returns a new HTMLRenderer.
+func NewHTMLRenderer(opts ...html.Option) renderer.NodeRenderer {
 	r := &HTMLRenderer{
 		Config: html.NewConfig(),
 	}
@@ -112,13 +112,13 @@ func NewSuperscriptHTMLRenderer(opts ...html.Option) renderer.NodeRenderer {
 
 // RegisterFuncs implements renderer.NodeRenderer.RegisterFuncs.
 func (r *HTMLRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
-	reg.Register(KindSuperscript, r.renderSuperscript)
+	reg.Register(Kind, r.render)
 }
 
 // AttributeFilter defines attribute names which dd elements can have.
 var AttributeFilter = html.GlobalAttributeFilter
 
-func (r *HTMLRenderer) renderSuperscript(
+func (r *HTMLRenderer) render(
 	w util.BufWriter, _ []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
 	if entering {
 		if n.Attributes() != nil {
@@ -134,14 +134,14 @@ func (r *HTMLRenderer) renderSuperscript(
 	return ast.WalkContinue, nil
 }
 
-// Extension allows you to use a superscript expression like 'x^2^'.
+// The Extension allows you to use a superscript expression like 'x^2^'.
 var Extension = &Superscript{}
 
 func (n *Superscript) Extend(m goldmark.Markdown) {
 	m.Parser().AddOptions(parser.WithInlineParsers(
-		util.Prioritized(NewSuperscriptParser(), 600),
+		util.Prioritized(NewParser(), 600),
 	))
 	m.Renderer().AddOptions(renderer.WithNodeRenderers(
-		util.Prioritized(NewSuperscriptHTMLRenderer(), 600),
+		util.Prioritized(NewHTMLRenderer(), 600),
 	))
 }
