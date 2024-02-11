@@ -15,15 +15,15 @@ This repository houses a collection of [Goldmark] extensions created by the [Hug
 
 [![GoDoc](https://godoc.org/github.com/gohugoio/hugo-goldmark-extensions/passthrough?status.svg)](https://godoc.org/github.com/gohugoio/hugo-goldmark-extensions/passthrough)
 
-Use this extension to preserve raw markdown within delimited snippets of text. This was initially developed to support [LaTeX] mixed with markdown, specifically mathematical expressions and equations.
+Use this extension to preserve raw Markdown within delimited snippets of text. This was initially developed to support [LaTeX] mixed with Markdown, specifically mathematical expressions and equations.
 
-For example, to preserve raw markdown for inline snippets delimited by the `$` character:
+For example, to preserve raw Markdown for inline snippets delimited by the `$` character:
 
 Markdown|Default rendering|Passthrough rendering
 :--|:--|:--
 `a $_text_$ snippet`|`a $<em>text</em>$ snippet`|`a $_text_$ snippet`
 
-In the markdown example above, the underscores surrounding the word "text" signify emphasis. The markdown renderer wraps the word within `em` tags as required by the [CommonMark] specification. In comparison, the passthrough extension preserves the text within and including the delimiters.
+In the Markdown example above, the underscores surrounding the word "text" signify emphasis. The Markdown renderer wraps the word within `em` tags as required by the [CommonMark] specification. In comparison, the passthrough extension preserves the text within and including the delimiters.
 
 Why is this important? Consider this example of a mathematical equation written in LaTeX:
 
