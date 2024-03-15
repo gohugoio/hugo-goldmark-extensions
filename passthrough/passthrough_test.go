@@ -13,25 +13,27 @@ import (
 
 func buildTestParser() goldmark.Markdown {
 	md := goldmark.New(
-		goldmark.WithExtensions(NewPassthroughWithDelimiters(
-			/*inline*/ []Delimiters{
-				{
-					Open:  "$",
-					Close: "$",
+		goldmark.WithExtensions(New(
+			Config{
+				InlineDelimiters: []Delimiters{
+					{
+						Open:  "$",
+						Close: "$",
+					},
+					{
+						Open:  "\\(",
+						Close: "\\)",
+					},
 				},
-				{
-					Open:  "\\(",
-					Close: "\\)",
-				},
-			},
-			/*block*/ []Delimiters{
-				{
-					Open:  "$$",
-					Close: "$$",
-				},
-				{
-					Open:  "\\[",
-					Close: "\\]",
+				BlockDelimiters: []Delimiters{
+					{
+						Open:  "$$",
+						Close: "$$",
+					},
+					{
+						Open:  "\\[",
+						Close: "\\]",
+					},
 				},
 			},
 		)),
