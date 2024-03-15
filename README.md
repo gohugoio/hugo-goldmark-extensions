@@ -104,3 +104,63 @@ inline $a^*=x-b^*$ snippet
 	fmt.Println(buf.String())
 }
 ```
+
+## Extras extension
+
+[![GoDoc](https://godoc.org/github.com/gohugoio/hugo-goldmark-extensions/extras?status.svg)](https://godoc.org/github.com/gohugoio/hugo-goldmark-extensions/extras)
+
+Use this extension to enable [subscript] (`<sub>`), [superscript] (`<sup>`), and [inserted text] (`<ins>`) elements in Markdown.
+
+Wrap subscripts with a tilde (`~`), superscripts with a caret (`^`), and inserted text with two plus signs (`++`).
+
+[subscript]: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/sub
+[superscript]: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/sup
+[inserted text ]: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/ins
+
+### Examples
+
+```text
+Hydrogen (H) is the 1^st^ element in the periodic table.
+
+Water (H~2~O) is a liquid.
+
+Water (H~2~O) is a ++transparent++ liquid.
+```
+
+### Usage
+
+```go
+package main
+
+import (
+	"bytes"
+	"fmt"
+
+	"github.com/gohugoio/hugo-goldmark-extensions/extras"
+	"github.com/yuin/goldmark"
+)
+
+func main() {
+	md := goldmark.New(
+		goldmark.WithExtensions(
+			extras.Insert,
+			extras.Subscript,
+			extras.Superscript,
+		))
+
+	input := `
+Hydrogen (H) is the 1^st^ element in the periodic table.
+
+Water (H~2~O) is a liquid.
+
+Water (H~2~O) is a ++transparent++ liquid.
+	`
+
+	var buf bytes.Buffer
+	if err := md.Convert([]byte(input), &buf); err != nil {
+		panic(err)
+	}
+
+	fmt.Println(buf.String())
+}
+```
