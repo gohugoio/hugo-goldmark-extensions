@@ -3,13 +3,14 @@ package passthrough
 import (
 	"bytes"
 	"fmt"
+	"strings"
+
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/renderer"
 	"github.com/yuin/goldmark/text"
 	"github.com/yuin/goldmark/util"
-	"strings"
 )
 
 type Delimiters struct {
@@ -26,7 +27,7 @@ func startsWith(b []byte, s string) bool {
 	return string(b[:len(s)]) == s
 }
 
-type PassthroughInline struct {
+type passthroughInline struct {
 	ast.BaseInline
 
 	// The segment of text that this inline passthrough represents.
@@ -36,20 +37,20 @@ type PassthroughInline struct {
 	Delimiters *Delimiters
 }
 
-func newPassthroughInline(segment text.Segment, delimiters *Delimiters) *PassthroughInline {
-	return &PassthroughInline{
+func newPassthroughInline(segment text.Segment, delimiters *Delimiters) *passthroughInline {
+	return &passthroughInline{
 		Segment:    segment,
 		Delimiters: delimiters,
 	}
 }
 
 // Text implements Node.Text.
-func (n *PassthroughInline) Text(source []byte) []byte {
+func (n *passthroughInline) Text(source []byte) []byte {
 	return n.Segment.Value(source)
 }
 
 // Dump implements Node.Dump.
-func (n *PassthroughInline) Dump(source []byte, level int) {
+func (n *passthroughInline) Dump(source []byte, level int) {
 	indent := strings.Repeat("    ", level)
 	fmt.Printf("%sPassthroughInline {\n", indent)
 	indent2 := strings.Repeat("    ", level+1)
@@ -61,7 +62,7 @@ func (n *PassthroughInline) Dump(source []byte, level int) {
 var KindPassthroughInline = ast.NewNodeKind("PassthroughInline")
 
 // Kind implements Node.Kind.
-func (n *PassthroughInline) Kind() ast.NodeKind {
+func (n *passthroughInline) Kind() ast.NodeKind {
 	return KindPassthroughInline
 }
 
@@ -182,8 +183,7 @@ func (s *inlinePassthroughParser) Parse(parent ast.Node, block text.Reader, pc p
 	}
 }
 
-type passthroughInlineRenderer struct {
-}
+type passthroughInlineRenderer struct{}
 
 func (r *passthroughInlineRenderer) renderRawInline(w util.BufWriter, source []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
 	if entering {
@@ -220,8 +220,7 @@ func newPassthroughBlock() *PassthroughBlock {
 	}
 }
 
-type passthroughBlockRenderer struct {
-}
+type passthroughBlockRenderer struct{}
 
 func (r *passthroughBlockRenderer) renderRawBlock(w util.BufWriter, source []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
 	if entering {
@@ -247,14 +246,17 @@ type passthroughInlineTransformer struct {
 
 var PassthroughInlineTransformer = &passthroughInlineTransformer{}
 
-const passthroughMarkedForDeletion = "passthrough_marked_for_deletion"
-const passthroughProcessed = "passthrough_processed"
+const (
+	passthroughMarkedForDeletion = "passthrough_marked_for_deletion"
+	passthroughProcessed         = "passthrough_processed"
+)
 
 // Note, this transformer destroys the RawText attributes of the paragraph
 // nodes that it transforms. However, this does not seem to have an impact on
 // rendering.
 func (p *passthroughInlineTransformer) Transform(
-	doc *ast.Document, reader text.Reader, pc parser.Context) {
+	doc *ast.Document, reader text.Reader, pc parser.Context,
+) {
 	// Goldmark's walking algorithm is simplistic, and doesn't handle the
 	// possibility of replacing the current node being walked with a new node. So
 	// as a workaround, we split the walk in two. The first walk inserts new
@@ -298,7 +300,7 @@ func (p *passthroughInlineTransformer) Transform(
 				currentParagraph.AppendChild(currentParagraph, currentNode)
 				currentNode = nextNode
 			} else if currentNode.Kind() == KindPassthroughInline {
-				inline := currentNode.(*PassthroughInline)
+				inline := currentNode.(*passthroughInline)
 
 				// Only split into a new block if the delimiters are block delimiters
 				if !containsDelimiters(p.BlockDelimiters, inline.Delimiters) {
@@ -375,14 +377,6 @@ func (r *passthroughBlockRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRe
 	reg.Register(KindPassthroughBlock, r.renderRawBlock)
 }
 
-func newPassthroughInlineRenderer() renderer.NodeRenderer {
-	return &passthroughInlineRenderer{}
-}
-
-func NewPassthroughBlockRenderer() renderer.NodeRenderer {
-	return &passthroughBlockRenderer{}
-}
-
 // ---- Extension and config ----
 
 type passthrough struct {
@@ -390,9 +384,13 @@ type passthrough struct {
 	BlockDelimiters  []Delimiters
 }
 
-func NewPassthroughWithDelimiters(
-	inlineDelimiters []Delimiters,
-	blockDelimiters []Delimiters) goldmark.Extender {
+// Config configures this extension.
+type Config struct {
+	InlineDelimiters []Delimiters
+	BlockDelimiters  []Delimiters
+}
+
+func New(c Config) goldmark.Extender {
 	// The parser executes in two phases:
 	//
 	// Phase 1: parse the input with all delimiters treated as inline, and block delimiters
@@ -400,12 +398,12 @@ func NewPassthroughWithDelimiters(
 	//
 	// Phase 2: transform the parsed AST to split paragraphs at the point of
 	// inline passthroughs with matching block delimiters.
-	combinedDelimiters := make([]Delimiters, len(inlineDelimiters)+len(blockDelimiters))
-	copy(combinedDelimiters, blockDelimiters)
-	copy(combinedDelimiters[len(blockDelimiters):], inlineDelimiters)
+	combinedDelimiters := make([]Delimiters, len(c.InlineDelimiters)+len(c.BlockDelimiters))
+	copy(combinedDelimiters, c.BlockDelimiters)
+	copy(combinedDelimiters[len(c.BlockDelimiters):], c.InlineDelimiters)
 	return &passthrough{
 		InlineDelimiters: combinedDelimiters,
-		BlockDelimiters:  blockDelimiters,
+		BlockDelimiters:  c.BlockDelimiters,
 	}
 }
 
@@ -420,7 +418,7 @@ func (e *passthrough) Extend(m goldmark.Markdown) {
 	)
 
 	m.Renderer().AddOptions(renderer.WithNodeRenderers(
-		util.Prioritized(newPassthroughInlineRenderer(), 101),
-		util.Prioritized(NewPassthroughBlockRenderer(), 99),
+		util.Prioritized(&passthroughInlineRenderer{}, 101),
+		util.Prioritized(&passthroughBlockRenderer{}, 99),
 	))
 }

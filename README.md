@@ -62,26 +62,38 @@ import (
 )
 
 func main() {
-	inlineDelimiters := []passthrough.Delimiters{
-		{Open: "\\(", Close: "\\)"},
-	}
-	blockDelimiters := []passthrough.Delimiters{
-		{Open: "\\[", Close: "\\]"},
-		{Open: "$$", Close: "$$"},
-	}
-
 	md := goldmark.New(
 		goldmark.WithExtensions(
-			passthrough.NewPassthroughWithDelimiters(
-				inlineDelimiters,
-				blockDelimiters,
+			passthrough.New(
+				passthrough.Config{
+					InlineDelimiters: []passthrough.Delimiters{
+						{
+							Open:  "$",
+							Close: "$",
+						},
+						{
+							Open:  "\\(",
+							Close: "\\)",
+						},
+					},
+					BlockDelimiters: []passthrough.Delimiters{
+						{
+							Open:  "$$",
+							Close: "$$",
+						},
+						{
+							Open:  "\\[",
+							Close: "\\]",
+						},
+					},
+				},
 			)),
 	)
 
 	input := `
-block \[a^*=x-b^*\] snippet
+block $$a^*=x-b^*$$ snippet
 
-inline \(a^*=x-b^*\) snippet
+inline $a^*=x-b^*$ snippet
 `
 
 	var buf bytes.Buffer
