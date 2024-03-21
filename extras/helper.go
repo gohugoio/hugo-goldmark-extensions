@@ -7,7 +7,7 @@ func hasSpace(line []byte) bool {
 	for i := 1; i < len(line); i++ {
 		c := line[i]
 		if c == marker {
-			return false
+			break
 		}
 		if util.IsSpace(c) {
 			return true
