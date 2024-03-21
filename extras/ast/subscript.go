@@ -1,4 +1,3 @@
-// Package ast defines AST nodes that represents extension's elements
 package ast
 
 import (

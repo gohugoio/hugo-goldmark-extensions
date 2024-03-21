@@ -1,4 +1,4 @@
-package insert
+package extras
 
 import (
 	"bytes"
@@ -8,23 +8,14 @@ import (
 	"testing"
 )
 
-func buildTestParser() goldmark.Markdown {
-	markdown := goldmark.New(
-		goldmark.WithExtensions(
-			Extension,
-		),
-	)
-	return markdown
+func TestInsert(t *testing.T) {
+	markdown := goldmark.New(goldmark.WithExtensions(Insert))
+	testutil.DoTestCaseFile(markdown, "_test/insert.txt", t, testutil.ParseCliCaseArg()...)
 }
 
-func Test(t *testing.T) {
-	markdown := buildTestParser()
-	testutil.DoTestCaseFile(markdown, "testCases.txt", t, testutil.ParseCliCaseArg()...)
-}
-
-func TestDump(t *testing.T) {
+func TestInsertDump(t *testing.T) {
 	input := "Add some text: ++insertion++. Amazing."
-	markdown := buildTestParser()
+	markdown := goldmark.New(goldmark.WithExtensions(Insert))
 	root := markdown.Parser().Parse(text.NewReader([]byte(input)))
 	root.Dump([]byte(input), 0)
 	// Prints to stdout, so just test that it doesn't crash
@@ -48,7 +39,7 @@ Add some text: ++insertion++. Amazing.`
 	})
 
 	b.Run("with insert", func(b *testing.B) {
-		markdown := buildTestParser()
+		markdown := goldmark.New(goldmark.WithExtensions(Insert))
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			var buf bytes.Buffer

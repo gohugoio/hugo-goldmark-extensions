@@ -80,7 +80,7 @@ func (r *SubscriptHTMLRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegis
 	reg.Register(ast.KindSubscript, r.renderSubscript)
 }
 
-// SubscriptAttributeFilter defines attribute names which dd elements can have.
+// SubscriptAttributeFilter defines attribute names.
 var SubscriptAttributeFilter = html.GlobalAttributeFilter
 
 func (r *SubscriptHTMLRenderer) renderSubscript(
