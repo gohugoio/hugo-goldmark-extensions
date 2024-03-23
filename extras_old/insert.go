@@ -1,4 +1,4 @@
-package extras
+package extras_old
 
 import (
 	"github.com/gohugoio/hugo-goldmark-extensions/extras/ast"
