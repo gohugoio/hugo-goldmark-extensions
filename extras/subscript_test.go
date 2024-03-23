@@ -21,7 +21,7 @@ func TestSubscript(t *testing.T) {
 }
 
 func TestSubscriptDump(t *testing.T) {
-	input := "The **formula H~2~O** describes the chemical composition of water."
+	input := "The H~2~O molecule"
 	markdown := goldmark.New(
 		goldmark.WithExtensions(
 			Subscript, Superscript,

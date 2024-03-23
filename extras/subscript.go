@@ -46,7 +46,7 @@ func (s *subscriptParser) Parse(parent gast.Node, block text.Reader, pc parser.C
 	before := block.PrecendingCharacter()
 	line, segment := block.PeekLine()
 	node := parser.ScanDelimiter(line, before, 1, defaultSubscriptDelimiterProcessor)
-	if node == nil || (node.CanOpen && hasSpace(line)) {
+	if node == nil {
 		return nil
 	}
 	node.Segment = segment.WithStop(segment.Start + node.OriginalLength)

@@ -47,7 +47,7 @@ func (s *superscriptParser) Parse(parent gast.Node, block text.Reader, pc parser
 	before := block.PrecendingCharacter()
 	line, segment := block.PeekLine()
 	node := parser.ScanDelimiter(line, before, 1, defaultSuperscriptDelimiterProcessor)
-	if node == nil || (node.CanOpen && hasSpace(line)) {
+	if node == nil {
 		return nil
 	}
 	node.Segment = segment.WithStop(segment.Start + node.OriginalLength)
