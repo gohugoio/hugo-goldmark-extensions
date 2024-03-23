@@ -50,6 +50,11 @@ func (s *superscriptParser) Parse(parent gast.Node, block text.Reader, pc parser
 	if node == nil {
 		return nil
 	}
+	if node.CanOpen && hasSpace(line) {
+		if !(node.CanClose && pc.LastDelimiter() != nil && pc.LastDelimiter().Char == node.Char) {
+			return nil
+		}
+	}
 	node.Segment = segment.WithStop(segment.Start + node.OriginalLength)
 	block.Advance(node.OriginalLength)
 	pc.PushDelimiter(node)

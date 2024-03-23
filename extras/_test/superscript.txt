@@ -5,51 +5,65 @@
 <p><sup>foo</sup></p>
 //= = = = = = = = = = = = = = = = = = = = = = = =//
 
-2:
+2: Ordinal indicator
 //- - - - - - - - -//
 2^nd^
 //- - - - - - - - -//
 <p>2<sup>nd</sup></p>
 //= = = = = = = = = = = = = = = = = = = = = = = =//
 
-3
+3: Powers
 //- - - - - - - - -//
 x^2^ + x^5^
 //- - - - - - - - -//
 <p>x<sup>2</sup> + x<sup>5</sup></p>
 //= = = = = = = = = = = = = = = = = = = = = = = =//
 
-4
+4: Escaped care
 //- - - - - - - - -//
 ^foo\^
 //- - - - - - - - -//
 <p>^foo^</p>
 //= = = = = = = = = = = = = = = = = = = = = = = =//
 
-5
+5: : Cares surround text with a non-breaking space entity
 //- - - - - - - - -//
 ^foo&nbsp;bar^
 //- - - - - - - - -//
 <p><sup>foo bar</sup></p>
 //= = = = = = = = = = = = = = = = = = = = = = = =//
 
-6
+6: Cares surround text Surround with a non-breaking space (UTF-8)
 //- - - - - - - - -//
 ^foo bar^
 //- - - - - - - - -//
 <p><sup>foo bar</sup></p>
 //= = = = = = = = = = = = = = = = = = = = = = = =//
 
-7: Tildes in the middle and text before
+7: Cares in the middle and text before
 //- - - - - - - - -//
 text C^foo^C
 //- - - - - - - - -//
 <p>text C<sup>foo</sup>C</p>
 //= = = = = = = = = = = = = = = = = = = = = = = =//
 
-9: Tildes in the middle and text after
+8: Cares in the middle and text after
 //- - - - - - - - -//
 C^foo^C text
 //- - - - - - - - -//
 <p>C<sup>foo</sup>C text</p>
+//= = = = = = = = = = = = = = = = = = = = = = = =//
+
+9: Wrong markers in LaTeX style notation should be left untouched
+//- - - - - - - - -//
+x^2 + x^3
+//- - - - - - - - -//
+<p>x^2 + x^3</p>
+//= = = = = = = = = = = = = = = = = = = = = = = =//
+
+10: Footnote markers should be left untouched
+//- - - - - - - - -//
+text[^1] text[^2]
+//- - - - - - - - -//
+<p>text[^1] text[^2]</p>
 //= = = = = = = = = = = = = = = = = = = = = = = =//

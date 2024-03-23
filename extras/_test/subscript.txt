@@ -5,7 +5,7 @@
 <p><sub>foo</sub></p>
 //= = = = = = = = = = = = = = = = = = = = = = = =//
 
-2: Single formula with tildes in the middle
+2: Formula with tildes in the middle
 //- - - - - - - - -//
 H~2~O
 //- - - - - - - - -//
@@ -33,7 +33,7 @@ x~i~ + x~j~
 <p><sub>foo bar</sub></p>
 //= = = = = = = = = = = = = = = = = = = = = = = =//
 
-6: Non-breaking space UTF8
+6: Non-breaking space UTF-8
 //- - - - - - - - -//
 ~foo bar~
 //- - - - - - - - -//
