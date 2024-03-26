@@ -1,4 +1,4 @@
-module github.com/gohugoio/hugo-goldmark-extensions/extras
+module github.com/gohugoio/hugo-goldmark-extensions/extras_old
 
 go 1.22.1
 
