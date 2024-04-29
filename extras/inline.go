@@ -128,36 +128,30 @@ type extraInlineTag struct {
 
 type ExtraInlineTagConfig struct {
 	ast.InlineTagType
-
-	Enable bool
 }
 
 func New(config ExtraInlineTagConfig) goldmark.Extender {
-	var tag extraInlineTag
+	var extension extraInlineTag
 
 	switch config.InlineTagType {
 	case ast.Superscript:
-		tag = extraInlineTag{ast.SuperscriptTag}
+		extension = extraInlineTag{ast.SuperscriptTag}
 	case ast.Subscript:
-		tag = extraInlineTag{ast.SubscriptTag}
+		extension = extraInlineTag{ast.SubscriptTag}
 	case ast.Insert:
-		tag = extraInlineTag{ast.InsertTag}
+		extension = extraInlineTag{ast.InsertTag}
 	case ast.Mark:
-		tag = extraInlineTag{ast.MarkTag}
+		extension = extraInlineTag{ast.MarkTag}
 	}
-	if config.Enable {
-		return &tag
-	} else {
-		return nil
-	}
+	return &extension
 }
 
 // Extend adds inline tags to the Markdown parser and renderer.
-func (n *extraInlineTag) Extend(m goldmark.Markdown) {
-	m.Parser().AddOptions(parser.WithInlineParsers(
-		util.Prioritized(newInlineTagParser(n.InlineTag), n.ParsePriority),
+func (tag *extraInlineTag) Extend(md goldmark.Markdown) {
+	md.Parser().AddOptions(parser.WithInlineParsers(
+		util.Prioritized(newInlineTagParser(tag.InlineTag), tag.ParsePriority),
 	))
-	m.Renderer().AddOptions(renderer.WithNodeRenderers(
-		util.Prioritized(newInlineTagHTMLRenderer(n.InlineTag), n.RenderPriority),
+	md.Renderer().AddOptions(renderer.WithNodeRenderers(
+		util.Prioritized(newInlineTagHTMLRenderer(tag.InlineTag), tag.RenderPriority),
 	))
 }
