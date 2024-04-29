@@ -4,17 +4,17 @@ import (
 	gast "github.com/yuin/goldmark/ast"
 )
 
-type TagType int
+type InlineTagType int
 
 const (
-	Superscript TagType = iota + 1
+	Superscript InlineTagType = iota + 1
 	Subscript
 	Insert
 	Mark
 )
 
-type Tag struct {
-	TagType           TagType
+type InlineTag struct {
+	TagType           InlineTagType
 	Char              byte
 	Number            int
 	Html              string
@@ -23,7 +23,7 @@ type Tag struct {
 	RenderPriority    int
 }
 
-var SuperscriptTag = Tag{
+var SuperscriptTag = InlineTag{
 	TagType:           Superscript,
 	Char:              '^',
 	Number:            1,
@@ -33,7 +33,7 @@ var SuperscriptTag = Tag{
 	RenderPriority:    600,
 }
 
-var SubscriptTag = Tag{
+var SubscriptTag = InlineTag{
 	TagType:           Subscript,
 	Char:              '~',
 	Number:            1,
@@ -43,7 +43,7 @@ var SubscriptTag = Tag{
 	RenderPriority:    602,
 }
 
-var InsertTag = Tag{
+var InsertTag = InlineTag{
 	TagType:           Insert,
 	Char:              '+',
 	Number:            2,
@@ -53,7 +53,7 @@ var InsertTag = Tag{
 	RenderPriority:    501,
 }
 
-var MarkTag = Tag{
+var MarkTag = InlineTag{
 	TagType:           Mark,
 	Char:              '=',
 	Number:            2,
@@ -63,17 +63,17 @@ var MarkTag = Tag{
 	RenderPriority:    550,
 }
 
-type InlineTag struct {
+type InlineTagNode struct {
 	gast.BaseInline
 
-	Tag
+	InlineTag
 }
 
-func NewInlineTag(tag Tag) *InlineTag {
-	return &InlineTag{
+func NewInlineTag(tag InlineTag) *InlineTagNode {
+	return &InlineTagNode{
 		BaseInline: gast.BaseInline{},
 
-		Tag: tag,
+		InlineTag: tag,
 	}
 }
 
@@ -82,7 +82,7 @@ var KindSubscript = gast.NewNodeKind("Subscript")
 var KindInsert = gast.NewNodeKind("Insert")
 var KindMark = gast.NewNodeKind("Mark")
 
-func NewInlineTagKind(t TagType) gast.NodeKind {
+func NewInlineTagNodeKind(t InlineTagType) gast.NodeKind {
 	var kind gast.NodeKind
 	switch t {
 	case Superscript:
@@ -97,10 +97,10 @@ func NewInlineTagKind(t TagType) gast.NodeKind {
 	return kind
 }
 
-func (n *InlineTag) Kind() gast.NodeKind {
-	return NewInlineTagKind(n.TagType)
+func (n *InlineTagNode) Kind() gast.NodeKind {
+	return NewInlineTagNodeKind(n.TagType)
 }
 
-func (n *InlineTag) Dump(source []byte, level int) {
+func (n *InlineTagNode) Dump(source []byte, level int) {
 	gast.DumpHelper(n, source, level, nil, nil)
 }

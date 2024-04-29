@@ -12,10 +12,10 @@ import (
 )
 
 type inlineTagDelimiterProcessor struct {
-	ast.Tag
+	ast.InlineTag
 }
 
-func newInlineTagDelimiterProcessor(tag ast.Tag) parser.DelimiterProcessor {
+func newInlineTagDelimiterProcessor(tag ast.InlineTag) parser.DelimiterProcessor {
 	return &inlineTagDelimiterProcessor{tag}
 }
 
@@ -28,15 +28,15 @@ func (p *inlineTagDelimiterProcessor) CanOpenCloser(opener, closer *parser.Delim
 }
 
 func (p *inlineTagDelimiterProcessor) OnMatch(_ int) gast.Node {
-	return ast.NewInlineTag(p.Tag)
+	return ast.NewInlineTag(p.InlineTag)
 }
 
 type inlineTagParser struct {
-	ast.Tag
+	ast.InlineTag
 }
 
-func newInlineTagParser(tag ast.Tag) parser.InlineParser {
-	return &inlineTagParser{Tag: tag}
+func newInlineTagParser(tag ast.InlineTag) parser.InlineParser {
+	return &inlineTagParser{InlineTag: tag}
 }
 
 // Trigger implements parser.InlineParser.
@@ -48,7 +48,7 @@ func (s *inlineTagParser) Trigger() []byte {
 func (s *inlineTagParser) Parse(_ gast.Node, block text.Reader, pc parser.Context) gast.Node {
 	before := block.PrecendingCharacter()
 	line, segment := block.PeekLine()
-	node := parser.ScanDelimiter(line, before, s.Number, newInlineTagDelimiterProcessor(s.Tag))
+	node := parser.ScanDelimiter(line, before, s.Number, newInlineTagDelimiterProcessor(s.InlineTag))
 	if node == nil {
 		return nil
 	}
@@ -80,12 +80,12 @@ func hasSpace(line []byte) bool {
 
 type inlineTagHTMLRenderer struct {
 	htmlTag string
-	tagType ast.TagType
+	tagType ast.InlineTagType
 	html.Config
 }
 
-// newInlineTagHTMLRenderer returns a new NodeRenderer that renders InlineTag nodes to HTML.
-func newInlineTagHTMLRenderer(tag ast.Tag, opts ...html.Option) renderer.NodeRenderer {
+// newInlineTagHTMLRenderer returns a new NodeRenderer that renders InlineTagNode nodes to HTML.
+func newInlineTagHTMLRenderer(tag ast.InlineTag, opts ...html.Option) renderer.NodeRenderer {
 	r := &inlineTagHTMLRenderer{
 		htmlTag: tag.Html,
 		tagType: tag.TagType,
@@ -99,7 +99,7 @@ func newInlineTagHTMLRenderer(tag ast.Tag, opts ...html.Option) renderer.NodeRen
 
 // RegisterFuncs registers rendering functions to the given NodeRendererFuncRegisterer.
 func (r *inlineTagHTMLRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
-	reg.Register(ast.NewInlineTagKind(r.tagType), r.renderInlineTag)
+	reg.Register(ast.NewInlineTagNodeKind(r.tagType), r.renderInlineTag)
 }
 
 // inlineTagAttributeFilter is a global filter for attributes.
@@ -124,7 +124,7 @@ func (r *inlineTagHTMLRenderer) renderInlineTag(
 
 // inlineTag is a general inline tag parser and renderer.
 type inlineTag struct {
-	ast.Tag
+	ast.InlineTag
 }
 
 // Superscript is an inline tag parser and renderer for superscript text.
@@ -142,9 +142,9 @@ var Mark = &inlineTag{ast.MarkTag}
 // Extend adds inline tags to the Markdown parser and renderer.
 func (n *inlineTag) Extend(m goldmark.Markdown) {
 	m.Parser().AddOptions(parser.WithInlineParsers(
-		util.Prioritized(newInlineTagParser(n.Tag), n.ParsePriority),
+		util.Prioritized(newInlineTagParser(n.InlineTag), n.ParsePriority),
 	))
 	m.Renderer().AddOptions(renderer.WithNodeRenderers(
-		util.Prioritized(newInlineTagHTMLRenderer(n.Tag), n.RenderPriority),
+		util.Prioritized(newInlineTagHTMLRenderer(n.InlineTag), n.RenderPriority),
 	))
 }
