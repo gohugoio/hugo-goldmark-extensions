@@ -122,25 +122,38 @@ func (r *inlineTagHTMLRenderer) renderInlineTag(
 	return gast.WalkContinue, nil
 }
 
-// inlineTag is a general inline tag parser and renderer.
-type inlineTag struct {
+type extraInlineTag struct {
 	ast.InlineTag
 }
 
-// Superscript is an inline tag parser and renderer for superscript text.
-var Superscript = &inlineTag{ast.SuperscriptTag}
+type ExtraInlineTagConfig struct {
+	ast.InlineTagType
 
-// Subscript is an inline tag parser and renderer for subscript text.
-var Subscript = &inlineTag{ast.SubscriptTag}
+	Enable bool
+}
 
-// Insert is an inline tag parser and renderer for inserted text.
-var Insert = &inlineTag{ast.InsertTag}
+func New(config ExtraInlineTagConfig) goldmark.Extender {
+	var tag extraInlineTag
 
-// Mark is an inline tag parser and renderer for marked text.
-var Mark = &inlineTag{ast.MarkTag}
+	switch config.InlineTagType {
+	case ast.Superscript:
+		tag = extraInlineTag{ast.SuperscriptTag}
+	case ast.Subscript:
+		tag = extraInlineTag{ast.SubscriptTag}
+	case ast.Insert:
+		tag = extraInlineTag{ast.InsertTag}
+	case ast.Mark:
+		tag = extraInlineTag{ast.MarkTag}
+	}
+	if config.Enable {
+		return &tag
+	} else {
+		return nil
+	}
+}
 
 // Extend adds inline tags to the Markdown parser and renderer.
-func (n *inlineTag) Extend(m goldmark.Markdown) {
+func (n *extraInlineTag) Extend(m goldmark.Markdown) {
 	m.Parser().AddOptions(parser.WithInlineParsers(
 		util.Prioritized(newInlineTagParser(n.InlineTag), n.ParsePriority),
 	))

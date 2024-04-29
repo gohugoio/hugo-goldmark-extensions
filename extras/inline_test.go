@@ -2,6 +2,7 @@ package extras
 
 import (
 	"bytes"
+	xast "github.com/gohugoio/hugo-goldmark-extensions/extras/ast"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/text"
 	"testing"
@@ -10,19 +11,28 @@ import (
 	"github.com/yuin/goldmark/testutil"
 )
 
+func buildGoldmarkWithInlineTag(tag xast.InlineTagType) goldmark.Markdown {
+	return goldmark.New(
+		goldmark.WithExtensions(New(ExtraInlineTagConfig{
+			InlineTagType: tag,
+			Enable:        true,
+		})))
+}
+
+var markdown = goldmark.New()
+var markdownWithSuperscript = buildGoldmarkWithInlineTag(xast.Superscript)
+var markdownWithSubscript = buildGoldmarkWithInlineTag(xast.Subscript)
+var markdownWithInsert = buildGoldmarkWithInlineTag(xast.Insert)
+var markdownWithMark = buildGoldmarkWithInlineTag(xast.Mark)
+
 func TestSuperscript(t *testing.T) {
-	markdown := goldmark.New(
-		goldmark.WithExtensions(Superscript),
-	)
-	testutil.DoTestCaseFile(markdown, "_test/superscript.txt", t, testutil.ParseCliCaseArg()...)
+	testutil.DoTestCaseFile(markdownWithSuperscript, "_test/superscript.txt", t, testutil.ParseCliCaseArg()...)
 }
 
 func TestSuperscriptDump(t *testing.T) {
 	input := "Parabola: f(x) = x^2^. Amazing"
-	markdown := goldmark.New(goldmark.WithExtensions(Superscript))
-	root := markdown.Parser().Parse(text.NewReader([]byte(input)))
+	root := markdownWithSuperscript.Parser().Parse(text.NewReader([]byte(input)))
 	root.Dump([]byte(input), 0)
-	// Prints to stdout, so just test that it doesn't crash
 }
 
 func BenchmarkWithAndWithoutOneSuperscript(b *testing.B) {
@@ -32,7 +42,6 @@ func BenchmarkWithAndWithoutOneSuperscript(b *testing.B) {
 This formula contains one superscript: f(x) = x^2^ .`
 
 	b.Run("without superscript", func(b *testing.B) {
-		markdown := goldmark.New()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			var buf bytes.Buffer
@@ -43,11 +52,10 @@ This formula contains one superscript: f(x) = x^2^ .`
 	})
 
 	b.Run("with superscript", func(b *testing.B) {
-		markdown := goldmark.New(goldmark.WithExtensions(Superscript))
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			var buf bytes.Buffer
-			if err := markdown.Convert([]byte(input), &buf); err != nil {
+			if err := markdownWithSuperscript.Convert([]byte(input), &buf); err != nil {
 				b.Fatal(err)
 			}
 		}
@@ -55,22 +63,18 @@ This formula contains one superscript: f(x) = x^2^ .`
 }
 
 func TestSubscript(t *testing.T) {
-	markdown := goldmark.New(
-		goldmark.WithExtensions(
-			Subscript, extension.Strikethrough,
-		),
-	)
+	var markdown = goldmark.New(
+		goldmark.WithExtensions(New(ExtraInlineTagConfig{
+			InlineTagType: xast.Subscript,
+			Enable:        true,
+		}), extension.Strikethrough))
 	testutil.DoTestCaseFile(markdown, "_test/subscript.txt", t, testutil.ParseCliCaseArg()...)
 }
 
 func TestSubscriptDump(t *testing.T) {
 	input := "The H~2~O molecule"
-	markdown := goldmark.New(
-		goldmark.WithExtensions(Subscript),
-	)
-	root := markdown.Parser().Parse(text.NewReader([]byte(input)))
+	root := markdownWithSubscript.Parser().Parse(text.NewReader([]byte(input)))
 	root.Dump([]byte(input), 0)
-	// Prints to stdout, so just test that it doesn't crash
 }
 
 func BenchmarkWithAndWithoutOneSubscript(b *testing.B) {
@@ -80,7 +84,6 @@ func BenchmarkWithAndWithoutOneSubscript(b *testing.B) {
 The chemical formula for water H~2~O contains one subscript.`
 
 	b.Run("without subscript", func(b *testing.B) {
-		markdown := goldmark.New()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			var buf bytes.Buffer
@@ -91,11 +94,10 @@ The chemical formula for water H~2~O contains one subscript.`
 	})
 
 	b.Run("with subscript", func(b *testing.B) {
-		markdown := goldmark.New(goldmark.WithExtensions(Subscript))
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			var buf bytes.Buffer
-			if err := markdown.Convert([]byte(input), &buf); err != nil {
+			if err := markdownWithSubscript.Convert([]byte(input), &buf); err != nil {
 				b.Fatal(err)
 			}
 		}
@@ -103,14 +105,12 @@ The chemical formula for water H~2~O contains one subscript.`
 }
 
 func TestInsert(t *testing.T) {
-	markdown := goldmark.New(goldmark.WithExtensions(Insert))
-	testutil.DoTestCaseFile(markdown, "_test/insert.txt", t, testutil.ParseCliCaseArg()...)
+	testutil.DoTestCaseFile(markdownWithInsert, "_test/insert.txt", t, testutil.ParseCliCaseArg()...)
 }
 
 func TestInsertDump(t *testing.T) {
 	input := "Add some text: ++insertion++. Amazing."
-	markdown := goldmark.New(goldmark.WithExtensions(Insert))
-	root := markdown.Parser().Parse(text.NewReader([]byte(input)))
+	root := markdownWithInsert.Parser().Parse(text.NewReader([]byte(input)))
 	root.Dump([]byte(input), 0)
 	// Prints to stdout, so just test that it doesn't crash
 }
@@ -122,7 +122,6 @@ func BenchmarkWithAndWithoutInsert(b *testing.B) {
 Add some text: ++insertion++. Amazing.`
 
 	b.Run("without insert", func(b *testing.B) {
-		markdown := goldmark.New()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			var buf bytes.Buffer
@@ -133,11 +132,10 @@ Add some text: ++insertion++. Amazing.`
 	})
 
 	b.Run("with insert", func(b *testing.B) {
-		markdown := goldmark.New(goldmark.WithExtensions(Insert))
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			var buf bytes.Buffer
-			if err := markdown.Convert([]byte(input), &buf); err != nil {
+			if err := markdownWithInsert.Convert([]byte(input), &buf); err != nil {
 				b.Fatal(err)
 			}
 		}
@@ -145,14 +143,12 @@ Add some text: ++insertion++. Amazing.`
 }
 
 func TestMark(t *testing.T) {
-	markdown := goldmark.New(goldmark.WithExtensions(Mark))
-	testutil.DoTestCaseFile(markdown, "_test/mark.txt", t, testutil.ParseCliCaseArg()...)
+	testutil.DoTestCaseFile(markdownWithMark, "_test/mark.txt", t, testutil.ParseCliCaseArg()...)
 }
 
 func TestMarkDump(t *testing.T) {
 	input := "Add some marked text: ==marked==. Amazing."
-	markdown := goldmark.New(goldmark.WithExtensions(Mark))
-	root := markdown.Parser().Parse(text.NewReader([]byte(input)))
+	root := markdownWithMark.Parser().Parse(text.NewReader([]byte(input)))
 	root.Dump([]byte(input), 0)
 	// Prints to stdout, so just test that it doesn't crash
 }
@@ -164,7 +160,6 @@ func BenchmarkWithAndWithoutMark(b *testing.B) {
 Add some marked text: ==marked==. Amazing.`
 
 	b.Run("without mark extension", func(b *testing.B) {
-		markdown := goldmark.New()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			var buf bytes.Buffer
@@ -175,11 +170,10 @@ Add some marked text: ==marked==. Amazing.`
 	})
 
 	b.Run("with mark extension", func(b *testing.B) {
-		markdown := goldmark.New(goldmark.WithExtensions(Mark))
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			var buf bytes.Buffer
-			if err := markdown.Convert([]byte(input), &buf); err != nil {
+			if err := markdownWithMark.Convert([]byte(input), &buf); err != nil {
 				b.Fatal(err)
 			}
 		}
