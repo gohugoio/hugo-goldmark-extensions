@@ -122,10 +122,12 @@ func (r *inlineTagHTMLRenderer) renderInlineTag(
 	return gast.WalkContinue, nil
 }
 
+// extraInlineTag is an extension that adds inline tags to the Markdown parser and renderer.
 type extraInlineTag struct {
 	ast.InlineTag
 }
 
+// ExtraInlineTagConfig is a configuration struct for the ExtraInlineTag extension.
 type ExtraInlineTagConfig struct {
 	ast.InlineTagType
 }
