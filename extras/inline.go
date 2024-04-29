@@ -63,7 +63,7 @@ func (s *inlineTagParser) Parse(_ gast.Node, block text.Reader, pc parser.Contex
 	return node
 }
 
-// Check if there is a space in the line before the next marker or the end.
+// Check if there is an ordinary white space in the line before the next marker
 func hasSpace(line []byte) bool {
 	marker := line[0]
 	for i := 1; i < len(line); i++ {

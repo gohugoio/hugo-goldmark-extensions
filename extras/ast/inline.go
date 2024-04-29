@@ -82,9 +82,9 @@ var KindSubscript = gast.NewNodeKind("Subscript")
 var KindInsert = gast.NewNodeKind("Insert")
 var KindMark = gast.NewNodeKind("Mark")
 
-func NewInlineTagNodeKind(t InlineTagType) gast.NodeKind {
+func NewInlineTagNodeKind(tag InlineTagType) gast.NodeKind {
 	var kind gast.NodeKind
-	switch t {
+	switch tag {
 	case Superscript:
 		kind = KindSuperscript
 	case Subscript:
