@@ -12,7 +12,7 @@ import (
 )
 
 func buildGoldmarkWithInlineTag(tag xast.InlineTagType) goldmark.Markdown {
-	return goldmark.New(goldmark.WithExtensions(New(InlineTagConfig{InlineTagType: tag})))
+	return goldmark.New(goldmark.WithExtensions(New(Config{InlineTagType: tag})))
 }
 
 var markdown = goldmark.New()
@@ -60,7 +60,7 @@ This formula contains one superscript: f(x) = x^2^ .`
 
 func TestSubscript(t *testing.T) {
 	var markdown = goldmark.New(
-		goldmark.WithExtensions(New(InlineTagConfig{
+		goldmark.WithExtensions(New(Config{
 			InlineTagType: xast.Subscript}), extension.Strikethrough))
 	testutil.DoTestCaseFile(markdown, "_test/subscript.txt", t, testutil.ParseCliCaseArg()...)
 }
