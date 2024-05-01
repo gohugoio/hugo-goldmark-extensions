@@ -128,11 +128,11 @@ type inlineTag struct {
 }
 
 // InlineTagConfig is a configuration struct for the ExtraInlineTag extension.
-type InlineTagConfig struct {
+type Config struct {
 	ast.InlineTagType
 }
 
-func New(config InlineTagConfig) goldmark.Extender {
+func New(config Config) goldmark.Extender {
 	var extension inlineTag
 
 	switch config.InlineTagType {
