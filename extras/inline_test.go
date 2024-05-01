@@ -2,7 +2,7 @@ package extras
 
 import (
 	"bytes"
-	xast "github.com/bowman2001/hugo-goldmark-extensions/extras/ast"
+	xast "github.com/gohugoio/hugo-goldmark-extensions/extras/ast"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/text"
 	"testing"

@@ -1,4 +1,4 @@
-module github.com/bowman2001/hugo-goldmark-extensions/extras
+module github.com/gohugoio/hugo-goldmark-extensions/extras
 
 go 1.20
 

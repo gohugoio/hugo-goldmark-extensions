@@ -1,7 +1,7 @@
 package extras
 
 import (
-	"github.com/bowman2001/hugo-goldmark-extensions/extras/ast"
+	"github.com/gohugoio/hugo-goldmark-extensions/extras/ast"
 	"github.com/yuin/goldmark"
 	gast "github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/parser"
