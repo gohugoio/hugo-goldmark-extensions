@@ -133,19 +133,16 @@ import (
 	"fmt"
 
 	"github.com/gohugoio/hugo-goldmark-extensions/extras"
-	"github.com/gohugoio/hugo-goldmark-extensions/extras/ast"
 	"github.com/yuin/goldmark"
 )
 
 func main() {
 	md := goldmark.New(
-		goldmark.WithExtensions(
-			extras.New(extras.Config{InlineTagType: ast.Insert}),
-			extras.New(extras.Config{InlineTagType: ast.Mark}),
-			extras.New(extras.Config{InlineTagType: ast.Subscript}),
-			extras.New(extras.Config{InlineTagType: ast.Superscript}),
-		))
-
+		goldmark.WithExtensions(extras.New(extras.Config{Insert: extras.InsertConfig{Enable: true}})),
+		goldmark.WithExtensions(extras.New(extras.Config{Mark: extras.MarkConfig{Enable: true}})),
+		goldmark.WithExtensions(extras.New(extras.Config{Subscript: extras.SubscriptConfig{Enable: true}})),
+		goldmark.WithExtensions(extras.New(extras.Config{Superscript: extras.SuperscriptConfig{Enable: true}})),
+	)
 	input := `
 Hydrogen (H) is the 1^st^ element in the periodic table.
 
