@@ -1,9 +1,8 @@
 package extras
 
 import (
-	"github.com/gohugoio/hugo-goldmark-extensions/extras/ast"
 	"github.com/yuin/goldmark"
-	gast "github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/renderer"
 	"github.com/yuin/goldmark/renderer/html"
@@ -12,10 +11,10 @@ import (
 )
 
 type inlineTagDelimiterProcessor struct {
-	ast.InlineTag
+	inlineTag
 }
 
-func newInlineTagDelimiterProcessor(tag ast.InlineTag) parser.DelimiterProcessor {
+func newInlineTagDelimiterProcessor(tag inlineTag) parser.DelimiterProcessor {
 	return &inlineTagDelimiterProcessor{tag}
 }
 
@@ -27,16 +26,16 @@ func (p *inlineTagDelimiterProcessor) CanOpenCloser(opener, closer *parser.Delim
 	return opener.Char == closer.Char
 }
 
-func (p *inlineTagDelimiterProcessor) OnMatch(_ int) gast.Node {
-	return ast.NewInlineTag(p.InlineTag)
+func (p *inlineTagDelimiterProcessor) OnMatch(_ int) ast.Node {
+	return newInlineTag(p.inlineTag)
 }
 
 type inlineTagParser struct {
-	ast.InlineTag
+	inlineTag
 }
 
-func newInlineTagParser(tag ast.InlineTag) parser.InlineParser {
-	return &inlineTagParser{InlineTag: tag}
+func newInlineTagParser(tag inlineTag) parser.InlineParser {
+	return &inlineTagParser{inlineTag: tag}
 }
 
 // Trigger implements parser.InlineParser.
@@ -45,10 +44,10 @@ func (s *inlineTagParser) Trigger() []byte {
 }
 
 // Parse implements the parser.InlineParser for all types of InlineTags.
-func (s *inlineTagParser) Parse(_ gast.Node, block text.Reader, pc parser.Context) gast.Node {
+func (s *inlineTagParser) Parse(_ ast.Node, block text.Reader, pc parser.Context) ast.Node {
 	before := block.PrecendingCharacter()
 	line, segment := block.PeekLine()
-	node := parser.ScanDelimiter(line, before, s.Number, newInlineTagDelimiterProcessor(s.InlineTag))
+	node := parser.ScanDelimiter(line, before, s.Number, newInlineTagDelimiterProcessor(s.inlineTag))
 	if node == nil {
 		return nil
 	}
@@ -80,15 +79,15 @@ func hasSpace(line []byte) bool {
 
 type inlineTagHTMLRenderer struct {
 	htmlTag string
-	tagType ast.InlineTagType
+	tagKind ast.NodeKind
 	html.Config
 }
 
-// newInlineTagHTMLRenderer returns a new NodeRenderer that renders InlineTagNode nodes to HTML.
-func newInlineTagHTMLRenderer(tag ast.InlineTag, opts ...html.Option) renderer.NodeRenderer {
+// newInlineTagHTMLRenderer returns a new NodeRenderer that renders InlineTaast.Node nodes to HTML.
+func newInlineTagHTMLRenderer(tag inlineTag, opts ...html.Option) renderer.NodeRenderer {
 	r := &inlineTagHTMLRenderer{
 		htmlTag: tag.Html,
-		tagType: tag.TagType,
+		tagKind: tag.TagKind,
 		Config:  html.NewConfig(),
 	}
 	for _, opt := range opts {
@@ -99,7 +98,7 @@ func newInlineTagHTMLRenderer(tag ast.InlineTag, opts ...html.Option) renderer.N
 
 // RegisterFuncs registers rendering functions to the given NodeRendererFuncRegisterer.
 func (r *inlineTagHTMLRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
-	reg.Register(ast.NewInlineTagNodeKind(r.tagType), r.renderInlineTag)
+	reg.Register(r.tagKind, r.renderInlineTag)
 }
 
 // inlineTagAttributeFilter is a global filter for attributes.
@@ -107,7 +106,8 @@ var inlineTagAttributeFilter = html.GlobalAttributeFilter
 
 // renderInlineTag renders an inline tag.
 func (r *inlineTagHTMLRenderer) renderInlineTag(
-	w util.BufWriter, _ []byte, n gast.Node, entering bool) (gast.WalkStatus, error) {
+	w util.BufWriter, _ []byte, n ast.Node, entering bool,
+) (ast.WalkStatus, error) {
 	if entering {
 		_ = w.WriteByte('<')
 		_, _ = w.WriteString(r.htmlTag)
@@ -119,41 +119,70 @@ func (r *inlineTagHTMLRenderer) renderInlineTag(
 		_, _ = w.WriteString(r.htmlTag)
 	}
 	_ = w.WriteByte('>')
-	return gast.WalkContinue, nil
+	return ast.WalkContinue, nil
 }
 
-// inlineTag is an extension that adds inline tags to the Markdown parser and renderer.
-type inlineTag struct {
-	ast.InlineTag
+// inlineExtension is an extension that adds inline tags to the Markdown parser and renderer.
+type inlineExtension struct {
+	conf Config
 }
 
-// InlineTagConfig is a configuration struct for the ExtraInlineTag extension.
+// Config confitures the extras extension.
 type Config struct {
-	ast.InlineTagType
+	Superscript SuperscriptConfig
+	Subscript   SubscriptConfig
+	Insert      InsertConfig
+	Mark        MarkConfig
 }
+
+// SuperscriptConfig configures the superscript extension.
+type SuperscriptConfig struct {
+	Enable bool
+}
+
+// SubscriptConfig configures the subscript extension.
+type SubscriptConfig struct {
+	Enable bool
+}
+
+// InsertConfig configures the insert extension.
+type InsertConfig struct {
+	Enable bool
+}
+
+// MarkConfig configures the mark extension.
+type MarkConfig struct {
+	Enable bool
+}
+
+// New returns a new inline tag extension.
 
 func New(config Config) goldmark.Extender {
-	var extension inlineTag
-
-	switch config.InlineTagType {
-	case ast.Superscript:
-		extension = inlineTag{ast.SuperscriptTag}
-	case ast.Subscript:
-		extension = inlineTag{ast.SubscriptTag}
-	case ast.Insert:
-		extension = inlineTag{ast.InsertTag}
-	case ast.Mark:
-		extension = inlineTag{ast.MarkTag}
+	return &inlineExtension{
+		conf: config,
 	}
-	return &extension
 }
 
 // Extend adds inline tags to the Markdown parser and renderer.
-func (tag *inlineTag) Extend(md goldmark.Markdown) {
-	md.Parser().AddOptions(parser.WithInlineParsers(
-		util.Prioritized(newInlineTagParser(tag.InlineTag), tag.ParsePriority),
-	))
-	md.Renderer().AddOptions(renderer.WithNodeRenderers(
-		util.Prioritized(newInlineTagHTMLRenderer(tag.InlineTag), tag.RenderPriority),
-	))
+func (tag *inlineExtension) Extend(md goldmark.Markdown) {
+	addTag := func(tag inlineTag) {
+		md.Parser().AddOptions(parser.WithInlineParsers(
+			util.Prioritized(newInlineTagParser(tag), tag.ParsePriority),
+		))
+		md.Renderer().AddOptions(renderer.WithNodeRenderers(
+			util.Prioritized(newInlineTagHTMLRenderer(tag), tag.RenderPriority),
+		))
+	}
+	if tag.conf.Superscript.Enable {
+		addTag(superscriptTag)
+	}
+	if tag.conf.Subscript.Enable {
+		addTag(subscriptTag)
+	}
+	if tag.conf.Insert.Enable {
+		addTag(insertTag)
+	}
+	if tag.conf.Mark.Enable {
+		addTag(markTag)
+	}
 }
