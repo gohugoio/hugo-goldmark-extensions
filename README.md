@@ -104,3 +104,63 @@ inline $a^*=x-b^*$ snippet
 	fmt.Println(buf.String())
 }
 ```
+
+## Extras extension
+
+[![GoDoc](https://godoc.org/github.com/gohugoio/hugo-goldmark-extensions/extras?status.svg)](https://godoc.org/github.com/gohugoio/hugo-goldmark-extensions/extras)
+
+Use this extension to include [inserted text], [mark text], [subscript], and [superscript] elements in Markdown.
+
+Element|Markdown|Rendered
+:--|:--|:--
+Inserted text|`++foo++`|`<ins>foo</ins>`
+Mark text|`==bar==`|`<mark>bar</mark>`
+Subscript|`H~2~O`|`H<sub>2</sub>O`
+Superscript|`1^st^`|`1<sup>st</sup>`
+
+[inserted text]: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/ins
+[mark text]: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/mark
+[subscript]: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/sub
+[superscript]: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/sup
+
+### Usage
+
+```go
+package main
+
+import (
+	"bytes"
+	"fmt"
+
+	"github.com/gohugoio/hugo-goldmark-extensions/extras"
+	"github.com/gohugoio/hugo-goldmark-extensions/extras/ast"
+	"github.com/yuin/goldmark"
+)
+
+func main() {
+	md := goldmark.New(
+		goldmark.WithExtensions(
+			extras.New(extras.Config{InlineTagType: ast.Insert}),
+			extras.New(extras.Config{InlineTagType: ast.Mark}),
+			extras.New(extras.Config{InlineTagType: ast.Subscript}),
+			extras.New(extras.Config{InlineTagType: ast.Superscript}),
+		))
+
+	input := `
+Hydrogen (H) is the 1^st^ element in the periodic table.
+
+Water (H~2~O) is a liquid.
+
+Water (H~2~O) is a ++transparent++ liquid.
+
+Water (H~2~O) is a ++transparent++ ==liquid==.
+	`
+
+	var buf bytes.Buffer
+	if err := md.Convert([]byte(input), &buf); err != nil {
+		panic(err)
+	}
+
+	fmt.Println(buf.String())
+}
+```
