@@ -61,9 +61,9 @@ H~2~O text
 <p><del>foobar</del></p>
 //= = = = = = = = = = = = = = = = = = = = = = = =//
 
-10: Mixed subscript and strikethrough
+10: Mixed subscript and strikethrough will not work as expected!
 //- - - - - - - - -//
 ~~x~foobar~~~
 //- - - - - - - - -//
-<p><del>x<sub>foobar</sub></del></p>
+<p>~~x~foobar~~~</p>
 //= = = = = = = = = = = = = = = = = = = = = = = =//

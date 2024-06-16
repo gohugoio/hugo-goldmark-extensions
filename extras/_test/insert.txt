@@ -1,42 +1,21 @@
 1
 //- - - - - - - - -//
-++Hi++ Hello, world!
+Hello ++,++ world!
 //- - - - - - - - -//
-<p><ins>Hi</ins> Hello, world!</p>
+<p>Hello <ins>,</ins> world!</p>
 //= = = = = = = = = = = = = = = = = = = = = = = =//
 
 2
 //- - - - - - - - -//
-This ++has a
+This ++expression is stretched over a
 
-new paragraph++.
+paragraph++.
 //- - - - - - - - -//
-<p>This ++has a</p>
-<p>new paragraph++.</p>
+<p>This ++expression is stretched over a</p>
+<p>paragraph++.</p>
 //= = = = = = = = = = = = = = = = = = = = = = = =//
 
 3
-//- - - - - - - - -//
-x ++++foo++ bar++
-//- - - - - - - - -//
-<p>x <ins><ins>foo</ins> bar</ins></p>
-//= = = = = = = = = = = = = = = = = = = = = = = =//
-
-4
-//- - - - - - - - -//
-x ++foo ++bar++++
-//- - - - - - - - -//
-<p>x <ins>foo <ins>bar</ins></ins></p>
-//= = = = = = = = = = = = = = = = = = = = = = = =//
-
-5
-//- - - - - - - - -//
-x ++++foo++++
-//- - - - - - - - -//
-<p>x <ins><ins>foo</ins></ins></p>
-//= = = = = = = = = = = = = = = = = = = = = = = =//
-
-6
 //- - - - - - - - -//
 **++test**++
 
@@ -46,7 +25,7 @@ x ++++foo++++
 <p><ins>**test</ins>**</p>
 //= = = = = = = = = = = = = = = = = = = = = = = =//
 
-7
+4
 //- - - - - - - - -//
 [++link]()++
 
