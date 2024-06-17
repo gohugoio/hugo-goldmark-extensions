@@ -48,33 +48,13 @@ func (s *inlineTagParser) Parse(_ ast.Node, block text.Reader, pc parser.Context
 	before := block.PrecendingCharacter()
 	line, segment := block.PeekLine()
 	node := parser.ScanDelimiter(line, before, s.Number, newInlineTagDelimiterProcessor(s.inlineTag))
-	if node == nil {
+	if node == nil || node.OriginalLength > 2 || before == rune(s.Char) {
 		return nil
-	}
-	if !s.WhitespaceAllowed && node.CanOpen && hasSpace(line) {
-		if !(node.CanClose && pc.LastDelimiter() != nil && pc.LastDelimiter().Char == node.Char) {
-			return nil
-		}
 	}
 	node.Segment = segment.WithStop(segment.Start + node.OriginalLength)
 	block.Advance(node.OriginalLength)
 	pc.PushDelimiter(node)
 	return node
-}
-
-// Check if there is an ordinary white space in the line before the next marker
-func hasSpace(line []byte) bool {
-	marker := line[0]
-	for i := 1; i < len(line); i++ {
-		c := line[i]
-		if c == marker {
-			break
-		}
-		if util.IsSpace(c) {
-			return true
-		}
-	}
-	return false
 }
 
 type inlineTagHTMLRenderer struct {
@@ -133,6 +113,7 @@ type Config struct {
 	Subscript   SubscriptConfig
 	Insert      InsertConfig
 	Mark        MarkConfig
+	Delete      DeleteConfig
 }
 
 // SuperscriptConfig configures the superscript extension.
@@ -152,6 +133,10 @@ type InsertConfig struct {
 
 // MarkConfig configures the mark extension.
 type MarkConfig struct {
+	Enable bool
+}
+
+type DeleteConfig struct {
 	Enable bool
 }
 
@@ -184,5 +169,8 @@ func (tag *inlineExtension) Extend(md goldmark.Markdown) {
 	}
 	if tag.conf.Mark.Enable {
 		addTag(markTag)
+	}
+	if tag.conf.Delete.Enable {
+		addTag(deleteTag)
 	}
 }

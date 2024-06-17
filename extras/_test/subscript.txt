@@ -40,23 +40,30 @@ x~i~ + x~j~
 <p><sub>foo bar</sub></p>
 //= = = = = = = = = = = = = = = = = = = = = = = =//
 
-7: Mixed subscript and strikethrough
-//- - - - - - - - -//
-~~x~foobar~~~
-//- - - - - - - - -//
-<p><del>x<sub>foobar</sub></del></p>
-//= = = = = = = = = = = = = = = = = = = = = = = =//
-
-8: Tildes in the middle and text before
+7: Tildes in the middle and text before
 //- - - - - - - - -//
 text H~2~O
 //- - - - - - - - -//
 <p>text H<sub>2</sub>O</p>
 //= = = = = = = = = = = = = = = = = = = = = = = =//
 
-9: Tildes in the middle and text after
+8: Tildes in the middle and text after
 //- - - - - - - - -//
 H~2~O text
 //- - - - - - - - -//
 <p>H<sub>2</sub>O text</p>
+//= = = = = = = = = = = = = = = = = = = = = = = =//
+
+9: Check for a direct conflict with strikethrough
+//- - - - - - - - -//
+~~foobar~~
+//- - - - - - - - -//
+<p><del>foobar</del></p>
+//= = = = = = = = = = = = = = = = = = = = = = = =//
+
+10: Mixed subscript and strikethrough will not work as expected!
+//- - - - - - - - -//
+~~x~foobar~~~
+//- - - - - - - - -//
+<p>~~x~foobar~~~</p>
 //= = = = = = = = = = = = = = = = = = = = = = = =//

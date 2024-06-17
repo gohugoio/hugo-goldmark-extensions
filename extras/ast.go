@@ -54,6 +54,16 @@ var markTag = inlineTag{
 	RenderPriority:    550,
 }
 
+var deleteTag = inlineTag{
+	TagKind:           kindDelete,
+	Char:              '~',
+	Number:            2,
+	Html:              "del",
+	WhitespaceAllowed: false,
+	ParsePriority:     400,
+	RenderPriority:    400,
+}
+
 type inlineTagNode struct {
 	ast.BaseInline
 
@@ -73,6 +83,7 @@ var (
 	kindSubscript   = ast.NewNodeKind("Subscript")
 	kindInsert      = ast.NewNodeKind("Insert")
 	kindMark        = ast.NewNodeKind("Mark")
+	kindDelete      = ast.NewNodeKind("Delete")
 )
 
 func (n *inlineTagNode) Kind() ast.NodeKind {
