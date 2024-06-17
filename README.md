@@ -109,19 +109,32 @@ inline $a^*=x-b^*$ snippet
 
 [![GoDoc](https://godoc.org/github.com/gohugoio/hugo-goldmark-extensions/extras?status.svg)](https://godoc.org/github.com/gohugoio/hugo-goldmark-extensions/extras)
 
-Use this extension to include [inserted text], [mark text], [subscript], and [superscript] elements in Markdown.
+Use this extension to include [deleted text], [inserted text], [mark text], [subscript], and [superscript] elements in Markdown.
 
 Element|Markdown|Rendered
 :--|:--|:--
+Deleted text|`~~foo~~`|`<del>foo</del>`
 Inserted text|`++foo++`|`<ins>foo</ins>`
 Mark text|`==bar==`|`<mark>bar</mark>`
 Subscript|`H~2~O`|`H<sub>2</sub>O`
 Superscript|`1^st^`|`1<sup>st</sup>`
 
+[deleted text]: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/del
 [inserted text]: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/ins
 [mark text]: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/mark
 [subscript]: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/sub
 [superscript]: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/sup
+
+### Deleted text
+
+With Goldmark v1.7.1 and earlier, the Goldmark "strikethrough" extension was triggered by wrapping text within a pair of double-tilde characters. With Goldmark v1.7.2 and later, to provide full GFM compatibility, the Goldmark "strikethrough" extension is triggered by wrapping text within a pair of single- or double-tilde characters.
+
+This change conflicts with the Hugo Goldmark Extras "subscript" extension.
+
+When enabling the Hugo Goldmark Extras "subscript" extension, if you want to render subscript and strikethrough text concurrently, you must:
+
+1. Disable the Goldmark "strikethrough" extension
+2. Enable the Hugo Goldmark Extras "delete" extension
 
 ### Usage
 
@@ -140,6 +153,7 @@ func main() {
 	md := goldmark.New(
 		goldmark.WithExtensions(extras.New(
 			extras.Config{
+				Delete:      extras.DeleteConfig{Enable: true},
 				Insert:      extras.InsertConfig{Enable: true},
 				Mark:        extras.MarkConfig{Enable: true},
 				Subscript:   extras.SubscriptConfig{Enable: true},
@@ -153,9 +167,9 @@ Hydrogen (H) is the 1^st^ element in the periodic table.
 
 Water (H~2~O) is a liquid.
 
-Water (H~2~O) is a ++transparent++ liquid.
+Water (H~2~O) is a ~~liquid~~ ++compound++.
 
-Water (H~2~O) is a ++transparent++ ==liquid==.
+Water (H~2~O) is an ==organic compound==.
 	`
 
 	var buf bytes.Buffer
