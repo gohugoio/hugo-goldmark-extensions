@@ -5,63 +5,57 @@ import (
 )
 
 type inlineTag struct {
-	TagKind           ast.NodeKind
-	Char              byte
-	Number            int
-	Html              string
-	WhitespaceAllowed bool
-	ParsePriority     int
-	RenderPriority    int
+	TagKind        ast.NodeKind
+	Char           byte
+	Number         int
+	Html           string
+	ParsePriority  int
+	RenderPriority int
 }
 
 var superscriptTag = inlineTag{
-	TagKind:           kindSuperscript,
-	Char:              '^',
-	Number:            1,
-	Html:              "sup",
-	WhitespaceAllowed: false,
-	ParsePriority:     600,
-	RenderPriority:    600,
+	TagKind:        kindSuperscript,
+	Char:           '^',
+	Number:         1,
+	Html:           "sup",
+	ParsePriority:  600,
+	RenderPriority: 600,
 }
 
 var subscriptTag = inlineTag{
-	TagKind:           kindSubscript,
-	Char:              '~',
-	Number:            1,
-	Html:              "sub",
-	WhitespaceAllowed: false,
-	ParsePriority:     602,
-	RenderPriority:    602,
+	TagKind:        kindSubscript,
+	Char:           '~',
+	Number:         1,
+	Html:           "sub",
+	ParsePriority:  602,
+	RenderPriority: 602,
 }
 
 var insertTag = inlineTag{
-	TagKind:           kindInsert,
-	Char:              '+',
-	Number:            2,
-	Html:              "ins",
-	WhitespaceAllowed: true,
-	ParsePriority:     501,
-	RenderPriority:    501,
+	TagKind:        kindInsert,
+	Char:           '+',
+	Number:         2,
+	Html:           "ins",
+	ParsePriority:  501,
+	RenderPriority: 501,
 }
 
 var markTag = inlineTag{
-	TagKind:           kindMark,
-	Char:              '=',
-	Number:            2,
-	Html:              "mark",
-	WhitespaceAllowed: true,
-	ParsePriority:     550,
-	RenderPriority:    550,
+	TagKind:        kindMark,
+	Char:           '=',
+	Number:         2,
+	Html:           "mark",
+	ParsePriority:  550,
+	RenderPriority: 550,
 }
 
 var deleteTag = inlineTag{
-	TagKind:           kindDelete,
-	Char:              '~',
-	Number:            2,
-	Html:              "del",
-	WhitespaceAllowed: false,
-	ParsePriority:     400,
-	RenderPriority:    400,
+	TagKind:        kindDelete,
+	Char:           '~',
+	Number:         2,
+	Html:           "del",
+	ParsePriority:  400,
+	RenderPriority: 400,
 }
 
 type inlineTagNode struct {

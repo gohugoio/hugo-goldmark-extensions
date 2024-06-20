@@ -63,7 +63,7 @@ type inlineTagHTMLRenderer struct {
 	html.Config
 }
 
-// newInlineTagHTMLRenderer returns a new NodeRenderer that renders InlineTaast.Node nodes to HTML.
+// newInlineTagHTMLRenderer returns a new NodeRenderer that renders Inline nodes to HTML.
 func newInlineTagHTMLRenderer(tag inlineTag, opts ...html.Option) renderer.NodeRenderer {
 	r := &inlineTagHTMLRenderer{
 		htmlTag: tag.Html,
@@ -107,7 +107,7 @@ type inlineExtension struct {
 	conf Config
 }
 
-// Config confitures the extras extension.
+// Config configures the extras extension.
 type Config struct {
 	Superscript SuperscriptConfig
 	Subscript   SubscriptConfig
