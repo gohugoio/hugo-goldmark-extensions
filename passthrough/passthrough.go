@@ -27,7 +27,8 @@ func startsWith(b []byte, s string) bool {
 	return string(b[:len(s)]) == s
 }
 
-type passthroughInline struct {
+// PassthroughInline is a node representing a inline passthrough.
+type PassthroughInline struct {
 	ast.BaseInline
 
 	// The segment of text that this inline passthrough represents.
@@ -37,20 +38,20 @@ type passthroughInline struct {
 	Delimiters *Delimiters
 }
 
-func newPassthroughInline(segment text.Segment, delimiters *Delimiters) *passthroughInline {
-	return &passthroughInline{
+func newPassthroughInline(segment text.Segment, delimiters *Delimiters) *PassthroughInline {
+	return &PassthroughInline{
 		Segment:    segment,
 		Delimiters: delimiters,
 	}
 }
 
 // Text implements Node.Text.
-func (n *passthroughInline) Text(source []byte) []byte {
+func (n *PassthroughInline) Text(source []byte) []byte {
 	return n.Segment.Value(source)
 }
 
 // Dump implements Node.Dump.
-func (n *passthroughInline) Dump(source []byte, level int) {
+func (n *PassthroughInline) Dump(source []byte, level int) {
 	indent := strings.Repeat("    ", level)
 	fmt.Printf("%sPassthroughInline {\n", indent)
 	indent2 := strings.Repeat("    ", level+1)
@@ -62,7 +63,7 @@ func (n *passthroughInline) Dump(source []byte, level int) {
 var KindPassthroughInline = ast.NewNodeKind("PassthroughInline")
 
 // Kind implements Node.Kind.
-func (n *passthroughInline) Kind() ast.NodeKind {
+func (n *PassthroughInline) Kind() ast.NodeKind {
 	return KindPassthroughInline
 }
 
@@ -300,7 +301,7 @@ func (p *passthroughInlineTransformer) Transform(
 				currentParagraph.AppendChild(currentParagraph, currentNode)
 				currentNode = nextNode
 			} else if currentNode.Kind() == KindPassthroughInline {
-				inline := currentNode.(*passthroughInline)
+				inline := currentNode.(*PassthroughInline)
 
 				// Only split into a new block if the delimiters are block delimiters
 				if !containsDelimiters(p.BlockDelimiters, inline.Delimiters) {
