@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/text"
 
 	qt "github.com/frankban/quicktest"
@@ -52,6 +53,23 @@ func Parse(t *testing.T, input string) string {
 		t.Fatal(err)
 	}
 	return strings.TrimSpace(buf.String())
+}
+
+func ParseWalk(t testing.TB, input string, cb func(n ast.Node, entering bool) bool) {
+	t.Helper()
+	md := buildTestParser()
+	doc := md.Parser().Parse(text.NewReader([]byte(input)))
+	err := ast.Walk(
+		doc,
+		func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+			if cb(n, entering) {
+				return ast.WalkSkipChildren, nil
+			}
+			return ast.WalkContinue, nil
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestEmphasisOutsideOfMathmode(t *testing.T) {
@@ -547,6 +565,30 @@ $$a^*=x-b^*$$
 
 	c := qt.New(t)
 	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestNodeDelimiter(t *testing.T) {
+	input := `
+Block $$a^*=x-b^*$$ equation
+Inline $a^*=x-b^*$ equation
+
+`
+
+	c := qt.New(t)
+
+	ParseWalk(t, input, func(n ast.Node, entering bool) bool {
+		if entering {
+			switch nn := n.(type) {
+			case *PassthroughBlock:
+				c.Assert(nn.Delimiters.Open, qt.Equals, "$$")
+				c.Assert(nn.Delimiters.Close, qt.Equals, "$$")
+			case *PassthroughInline:
+				c.Assert(nn.Delimiters.Open, qt.Equals, "$")
+				c.Assert(nn.Delimiters.Close, qt.Equals, "$")
+			}
+		}
+		return false
+	})
 }
 
 func BenchmarkWithAndWithoutPassthrough(b *testing.B) {
