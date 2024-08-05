@@ -199,6 +199,8 @@ func (r *passthroughInlineRenderer) renderRawInline(w util.BufWriter, source []b
 // with the matching block delimiters.
 type PassthroughBlock struct {
 	ast.BaseBlock
+	// The matched delimiters
+	Delimiters *Delimiters
 }
 
 // Dump implements Node.Dump.
@@ -215,9 +217,10 @@ func (n *PassthroughBlock) Kind() ast.NodeKind {
 }
 
 // newPassthroughBlock return a new PassthroughBlock node.
-func newPassthroughBlock() *PassthroughBlock {
+func newPassthroughBlock(delimiters *Delimiters) *PassthroughBlock {
 	return &PassthroughBlock{
-		BaseBlock: ast.BaseBlock{},
+		Delimiters: delimiters,
+		BaseBlock:  ast.BaseBlock{},
 	}
 }
 
@@ -310,7 +313,7 @@ func (p *passthroughInlineTransformer) Transform(
 					continue
 				}
 
-				newBlock := newPassthroughBlock()
+				newBlock := newPassthroughBlock(inline.Delimiters)
 				newBlock.Lines().Append(inline.Segment)
 				if len(currentParagraph.Text(reader.Source())) > 0 {
 					parent.InsertAfter(parent, insertionPoint, currentParagraph)
