@@ -1,6 +1,8 @@
 package extras
 
 import (
+	"slices"
+
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/parser"
@@ -47,7 +49,17 @@ func (s *inlineTagParser) Trigger() []byte {
 func (s *inlineTagParser) Parse(_ ast.Node, block text.Reader, pc parser.Context) ast.Node {
 	before := block.PrecendingCharacter()
 	line, segment := block.PeekLine()
-	node := parser.ScanDelimiter(line, before, s.Number, newInlineTagDelimiterProcessor(s.inlineTag))
+
+	// Issue 30
+	modifiedLine := slices.Clone(line)
+	if s.inlineTag.TagKind == kindSuperscript && len(line) > s.Number {
+		symbols := []byte{'+', '-', '\''}
+		if slices.Contains(symbols, line[s.Number]) {
+			modifiedLine[s.Number] = 'z' // replace with any letter or number
+		}
+	}
+
+	node := parser.ScanDelimiter(modifiedLine, before, s.Number, newInlineTagDelimiterProcessor(s.inlineTag))
 	if node == nil || node.OriginalLength > 2 || before == rune(s.Char) {
 		return nil
 	}
