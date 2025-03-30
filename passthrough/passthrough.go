@@ -46,6 +46,7 @@ func newPassthroughInline(segment text.Segment, delimiters *Delimiters) *Passthr
 }
 
 // Text implements Node.Text.
+// Deprecated: Goldmark v1.7.8 deprecates Node.Text
 func (n *PassthroughInline) Text(source []byte) []byte {
 	return n.Segment.Value(source)
 }
@@ -55,7 +56,7 @@ func (n *PassthroughInline) Dump(source []byte, level int) {
 	indent := strings.Repeat("    ", level)
 	fmt.Printf("%sPassthroughInline {\n", indent)
 	indent2 := strings.Repeat("    ", level+1)
-	fmt.Printf("%sSegment: \"%s\"\n", indent2, n.Text(source))
+	fmt.Printf("%sSegment: \"%s\"\n", indent2, n.Segment.Value(source))
 	fmt.Printf("%s}\n", indent)
 }
 
@@ -188,7 +189,11 @@ type passthroughInlineRenderer struct{}
 
 func (r *passthroughInlineRenderer) renderRawInline(w util.BufWriter, source []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
 	if entering {
-		w.WriteString(string(n.Text(source)))
+		n, ok := n.(*PassthroughInline)
+		if !ok {
+			return ast.WalkContinue, nil
+		}
+		w.WriteString(string(n.Segment.Value(source)))
 	}
 	return ast.WalkContinue, nil
 }
@@ -315,7 +320,7 @@ func (p *passthroughInlineTransformer) Transform(
 
 				newBlock := newPassthroughBlock(inline.Delimiters)
 				newBlock.Lines().Append(inline.Segment)
-				if len(currentParagraph.Text(reader.Source())) > 0 {
+				if currentParagraph.ChildCount() > 0 {
 					parent.InsertAfter(parent, insertionPoint, currentParagraph)
 					// Since we're not removing the original paragraph, we need to ensure
 					// that this paragraph is not re-processed as the walk continues
