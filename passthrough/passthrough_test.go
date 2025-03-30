@@ -567,6 +567,24 @@ $$a^*=x-b^*$$
 	c.Assert(actual, qt.Equals, expected)
 }
 
+func TestIssue32(t *testing.T) {
+	input := `line one
+$$ a^n + b^n = c^n $$
+line two`
+
+	// The mid-paragraph new lines are undesirable, but this is how it worked
+	// with Goldmark v1.7.4.
+	expected := `<p>line one
+</p>
+$$ a^n + b^n = c^n $$
+<p>
+line two</p>`
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
 func TestNodeDelimiter(t *testing.T) {
 	input := `
 Block $$a^*=x-b^*$$ equation
