@@ -13,8 +13,8 @@ type inlineTag struct {
 	RenderPriority int
 }
 
-var superscriptTag = inlineTag{
-	TagKind:        kindSuperscript,
+var SuperscriptTag = inlineTag{
+	TagKind:        KindSuperscript,
 	Char:           '^',
 	Number:         1,
 	Html:           "sup",
@@ -22,8 +22,8 @@ var superscriptTag = inlineTag{
 	RenderPriority: 600,
 }
 
-var subscriptTag = inlineTag{
-	TagKind:        kindSubscript,
+var SubscriptTag = inlineTag{
+	TagKind:        KindSubscript,
 	Char:           '~',
 	Number:         1,
 	Html:           "sub",
@@ -31,8 +31,8 @@ var subscriptTag = inlineTag{
 	RenderPriority: 602,
 }
 
-var insertTag = inlineTag{
-	TagKind:        kindInsert,
+var InsertTag = inlineTag{
+	TagKind:        KindInsert,
 	Char:           '+',
 	Number:         2,
 	Html:           "ins",
@@ -40,8 +40,8 @@ var insertTag = inlineTag{
 	RenderPriority: 501,
 }
 
-var markTag = inlineTag{
-	TagKind:        kindMark,
+var MarkTag = inlineTag{
+	TagKind:        KindMark,
 	Char:           '=',
 	Number:         2,
 	Html:           "mark",
@@ -49,8 +49,8 @@ var markTag = inlineTag{
 	RenderPriority: 550,
 }
 
-var deleteTag = inlineTag{
-	TagKind:        kindDelete,
+var DeleteTag = inlineTag{
+	TagKind:        KindDelete,
 	Char:           '~',
 	Number:         2,
 	Html:           "del",
@@ -73,11 +73,11 @@ func newInlineTag(tag inlineTag) *inlineTagNode {
 }
 
 var (
-	kindSuperscript = ast.NewNodeKind("Superscript")
-	kindSubscript   = ast.NewNodeKind("Subscript")
-	kindInsert      = ast.NewNodeKind("Insert")
-	kindMark        = ast.NewNodeKind("Mark")
-	kindDelete      = ast.NewNodeKind("Delete")
+	KindSuperscript = ast.NewNodeKind("Superscript")
+	KindSubscript   = ast.NewNodeKind("Subscript")
+	KindInsert      = ast.NewNodeKind("Insert")
+	KindMark        = ast.NewNodeKind("Mark")
+	KindDelete      = ast.NewNodeKind("Delete")
 )
 
 func (n *inlineTagNode) Kind() ast.NodeKind {
