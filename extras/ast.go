@@ -4,7 +4,7 @@ import (
 	"github.com/yuin/goldmark/ast"
 )
 
-type inlineTag struct {
+type InlineTag struct {
 	TagKind        ast.NodeKind
 	Char           byte
 	Number         int
@@ -13,7 +13,7 @@ type inlineTag struct {
 	RenderPriority int
 }
 
-var SuperscriptTag = inlineTag{
+var SuperscriptTag = InlineTag{
 	TagKind:        KindSuperscript,
 	Char:           '^',
 	Number:         1,
@@ -22,7 +22,7 @@ var SuperscriptTag = inlineTag{
 	RenderPriority: 600,
 }
 
-var SubscriptTag = inlineTag{
+var SubscriptTag = InlineTag{
 	TagKind:        KindSubscript,
 	Char:           '~',
 	Number:         1,
@@ -31,7 +31,7 @@ var SubscriptTag = inlineTag{
 	RenderPriority: 602,
 }
 
-var InsertTag = inlineTag{
+var InsertTag = InlineTag{
 	TagKind:        KindInsert,
 	Char:           '+',
 	Number:         2,
@@ -40,7 +40,7 @@ var InsertTag = inlineTag{
 	RenderPriority: 501,
 }
 
-var MarkTag = inlineTag{
+var MarkTag = InlineTag{
 	TagKind:        KindMark,
 	Char:           '=',
 	Number:         2,
@@ -49,7 +49,7 @@ var MarkTag = inlineTag{
 	RenderPriority: 550,
 }
 
-var DeleteTag = inlineTag{
+var DeleteTag = InlineTag{
 	TagKind:        KindDelete,
 	Char:           '~',
 	Number:         2,
@@ -61,14 +61,14 @@ var DeleteTag = inlineTag{
 type inlineTagNode struct {
 	ast.BaseInline
 
-	inlineTag
+	InlineTag
 }
 
-func newInlineTag(tag inlineTag) *inlineTagNode {
+func newInlineTag(tag InlineTag) *inlineTagNode {
 	return &inlineTagNode{
 		BaseInline: ast.BaseInline{},
 
-		inlineTag: tag,
+		InlineTag: tag,
 	}
 }
 

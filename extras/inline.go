@@ -13,10 +13,10 @@ import (
 )
 
 type inlineTagDelimiterProcessor struct {
-	inlineTag
+	InlineTag
 }
 
-func newInlineTagDelimiterProcessor(tag inlineTag) parser.DelimiterProcessor {
+func newInlineTagDelimiterProcessor(tag InlineTag) parser.DelimiterProcessor {
 	return &inlineTagDelimiterProcessor{tag}
 }
 
@@ -29,15 +29,15 @@ func (p *inlineTagDelimiterProcessor) CanOpenCloser(opener, closer *parser.Delim
 }
 
 func (p *inlineTagDelimiterProcessor) OnMatch(_ int) ast.Node {
-	return newInlineTag(p.inlineTag)
+	return newInlineTag(p.InlineTag)
 }
 
 type inlineTagParser struct {
-	inlineTag
+	InlineTag
 }
 
-func newInlineTagParser(tag inlineTag) parser.InlineParser {
-	return &inlineTagParser{inlineTag: tag}
+func newInlineTagParser(tag InlineTag) parser.InlineParser {
+	return &inlineTagParser{InlineTag: tag}
 }
 
 // Trigger implements parser.InlineParser.
@@ -52,14 +52,14 @@ func (s *inlineTagParser) Parse(_ ast.Node, block text.Reader, pc parser.Context
 
 	// Issue 30
 	modifiedLine := slices.Clone(line)
-	if s.inlineTag.TagKind == KindSuperscript && len(line) > s.Number {
+	if s.InlineTag.TagKind == KindSuperscript && len(line) > s.Number {
 		symbols := []byte{'+', '-', '\''}
 		if slices.Contains(symbols, line[s.Number]) {
 			modifiedLine[s.Number] = 'z' // replace with any letter or number
 		}
 	}
 
-	node := parser.ScanDelimiter(modifiedLine, before, s.Number, newInlineTagDelimiterProcessor(s.inlineTag))
+	node := parser.ScanDelimiter(modifiedLine, before, s.Number, newInlineTagDelimiterProcessor(s.InlineTag))
 	if node == nil || node.OriginalLength > 2 || before == rune(s.Char) {
 		return nil
 	}
@@ -76,7 +76,7 @@ type inlineTagHTMLRenderer struct {
 }
 
 // NewInlineTagHTMLRenderer returns a new NodeRenderer that renders Inline nodes to HTML.
-func NewInlineTagHTMLRenderer(tag inlineTag, opts ...html.Option) renderer.NodeRenderer {
+func NewInlineTagHTMLRenderer(tag InlineTag, opts ...html.Option) renderer.NodeRenderer {
 	r := &inlineTagHTMLRenderer{
 		htmlTag: tag.Html,
 		tagKind: tag.TagKind,
@@ -162,7 +162,7 @@ func New(config Config) goldmark.Extender {
 
 // Extend adds inline tags to the Markdown parser and renderer.
 func (tag *inlineExtension) Extend(md goldmark.Markdown) {
-	addTag := func(tag inlineTag) {
+	addTag := func(tag InlineTag) {
 		md.Parser().AddOptions(parser.WithInlineParsers(
 			util.Prioritized(newInlineTagParser(tag), tag.ParsePriority),
 		))
