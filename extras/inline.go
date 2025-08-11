@@ -52,7 +52,7 @@ func (s *inlineTagParser) Parse(_ ast.Node, block text.Reader, pc parser.Context
 
 	// Issue 30
 	modifiedLine := slices.Clone(line)
-	if s.inlineTag.TagKind == kindSuperscript && len(line) > s.Number {
+	if s.inlineTag.TagKind == KindSuperscript && len(line) > s.Number {
 		symbols := []byte{'+', '-', '\''}
 		if slices.Contains(symbols, line[s.Number]) {
 			modifiedLine[s.Number] = 'z' // replace with any letter or number
@@ -75,8 +75,8 @@ type inlineTagHTMLRenderer struct {
 	html.Config
 }
 
-// newInlineTagHTMLRenderer returns a new NodeRenderer that renders Inline nodes to HTML.
-func newInlineTagHTMLRenderer(tag inlineTag, opts ...html.Option) renderer.NodeRenderer {
+// NewInlineTagHTMLRenderer returns a new NodeRenderer that renders Inline nodes to HTML.
+func NewInlineTagHTMLRenderer(tag inlineTag, opts ...html.Option) renderer.NodeRenderer {
 	r := &inlineTagHTMLRenderer{
 		htmlTag: tag.Html,
 		tagKind: tag.TagKind,
@@ -167,22 +167,22 @@ func (tag *inlineExtension) Extend(md goldmark.Markdown) {
 			util.Prioritized(newInlineTagParser(tag), tag.ParsePriority),
 		))
 		md.Renderer().AddOptions(renderer.WithNodeRenderers(
-			util.Prioritized(newInlineTagHTMLRenderer(tag), tag.RenderPriority),
+			util.Prioritized(NewInlineTagHTMLRenderer(tag), tag.RenderPriority),
 		))
 	}
 	if tag.conf.Superscript.Enable {
-		addTag(superscriptTag)
+		addTag(SuperscriptTag)
 	}
 	if tag.conf.Subscript.Enable {
-		addTag(subscriptTag)
+		addTag(SubscriptTag)
 	}
 	if tag.conf.Insert.Enable {
-		addTag(insertTag)
+		addTag(InsertTag)
 	}
 	if tag.conf.Mark.Enable {
-		addTag(markTag)
+		addTag(MarkTag)
 	}
 	if tag.conf.Delete.Enable {
-		addTag(deleteTag)
+		addTag(DeleteTag)
 	}
 }
