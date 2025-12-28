@@ -609,6 +609,90 @@ Inline $a^*=x-b^*$ equation
 	})
 }
 
+func TestBlockDelimitersInListItem(t *testing.T) {
+	input := `- Some text \[ x = y \] more text`
+	c := qt.New(t)
+
+	foundBlock := false
+	foundInline := false
+	ParseWalk(t, input, func(n ast.Node, entering bool) bool {
+		if entering {
+			switch n.(type) {
+			case *PassthroughBlock:
+				foundBlock = true
+			case *PassthroughInline:
+				foundInline = true
+			}
+		}
+		return false
+	})
+
+	c.Assert(foundBlock, qt.IsTrue, qt.Commentf("Expected PassthroughBlock in list item"))
+	c.Assert(foundInline, qt.IsFalse, qt.Commentf("Expected no PassthroughInline with block delimiters"))
+}
+
+func TestBlockDelimitersInBlockquote(t *testing.T) {
+	input := `> Quote with \[ x = y \] equation`
+	c := qt.New(t)
+
+	foundBlock := false
+	foundInline := false
+	ParseWalk(t, input, func(n ast.Node, entering bool) bool {
+		if entering {
+			switch n.(type) {
+			case *PassthroughBlock:
+				foundBlock = true
+			case *PassthroughInline:
+				foundInline = true
+			}
+		}
+		return false
+	})
+
+	c.Assert(foundBlock, qt.IsTrue, qt.Commentf("Expected PassthroughBlock in blockquote"))
+	c.Assert(foundInline, qt.IsFalse, qt.Commentf("Expected no PassthroughInline with block delimiters"))
+}
+
+func TestBlockDelimitersInNestedList(t *testing.T) {
+	input := `- Item 1
+  - Nested $$a + b$$ math`
+	c := qt.New(t)
+
+	foundBlock := false
+	ParseWalk(t, input, func(n ast.Node, entering bool) bool {
+		if entering {
+			if _, ok := n.(*PassthroughBlock); ok {
+				foundBlock = true
+			}
+		}
+		return false
+	})
+
+	c.Assert(foundBlock, qt.IsTrue, qt.Commentf("Expected PassthroughBlock in nested list"))
+}
+
+func TestInlineDelimitersInListItemRemainInline(t *testing.T) {
+	input := `- Some text $x = y$ more text`
+	c := qt.New(t)
+
+	foundBlock := false
+	foundInline := false
+	ParseWalk(t, input, func(n ast.Node, entering bool) bool {
+		if entering {
+			switch n.(type) {
+			case *PassthroughBlock:
+				foundBlock = true
+			case *PassthroughInline:
+				foundInline = true
+			}
+		}
+		return false
+	})
+
+	c.Assert(foundInline, qt.IsTrue, qt.Commentf("Expected PassthroughInline for inline delimiters"))
+	c.Assert(foundBlock, qt.IsFalse, qt.Commentf("Expected no PassthroughBlock for inline delimiters"))
+}
+
 func BenchmarkWithAndWithoutPassthrough(b *testing.B) {
 	const input = `
 ## Block

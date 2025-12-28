@@ -368,6 +368,28 @@ func (p *passthroughInlineTransformer) Transform(
 
 		return ast.WalkContinue, nil
 	})
+
+	// Third walk: convert any remaining PassthroughInline nodes with block
+	// delimiters to PassthroughBlock. This handles cases where block delimiters
+	// appear in non-paragraph contexts (e.g., list items, blockquotes).
+	ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+		inline, ok := n.(*PassthroughInline)
+		if !ok || !containsDelimiters(p.BlockDelimiters, inline.Delimiters) {
+			return ast.WalkContinue, nil
+		}
+		parent := inline.Parent()
+		if parent == nil {
+			return ast.WalkContinue, nil
+		}
+		block := newPassthroughBlock(inline.Delimiters)
+		block.Lines().Append(inline.Segment)
+		parent.InsertAfter(parent, inline, block)
+		parent.RemoveChild(parent, inline)
+		return ast.WalkContinue, nil
+	})
 }
 
 func newPassthroughInlineTransformer(ds []Delimiters) parser.ASTTransformer {
