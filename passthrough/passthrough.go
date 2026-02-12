@@ -124,6 +124,76 @@ func containsDelimiters(delims []Delimiters, toFind *Delimiters) bool {
 	return false
 }
 
+// isInlineContainerNode returns true if n is a block-level node that contains
+// inline content. Goldmark uses ast.KindParagraph for loose list items and
+// standalone paragraphs, but ast.KindTextBlock for tight list items. Both need
+// the same passthrough-splitting logic to ensure block delimiters render in
+// display mode rather than inline.
+func isInlineContainerNode(n ast.Node) bool {
+	if n == nil {
+		return false
+	}
+
+	switch n.Kind() {
+	case ast.KindParagraph, ast.KindTextBlock:
+		return true
+	default:
+		return false
+	}
+}
+
+func newInlineContainer(kind ast.NodeKind) ast.Node {
+	switch kind {
+	case ast.KindParagraph:
+		return ast.NewParagraph()
+	case ast.KindTextBlock:
+		return ast.NewTextBlock()
+	default:
+		return nil
+	}
+}
+
+// trimContainerSpace removes leading or trailing whitespace from text nodes
+// in a container, modifying the text segment boundaries in place.
+func trimContainerSpace(container ast.Node, source []byte, leading bool) {
+	if container.ChildCount() == 0 {
+		return
+	}
+
+	var textNode *ast.Text
+	if leading {
+		child := container.FirstChild()
+		if child.Kind() != ast.KindText {
+			return
+		}
+		textNode = child.(*ast.Text)
+	} else {
+		child := container.LastChild()
+		if child.Kind() != ast.KindText {
+			return
+		}
+		textNode = child.(*ast.Text)
+	}
+
+	seg := textNode.Segment
+	value := seg.Value(source)
+	origLen := len(value)
+
+	if leading {
+		value = bytes.TrimLeft(value, " \t")
+		newLen := len(value)
+		if newLen < origLen {
+			textNode.Segment = seg.WithStart(seg.Start + (origLen - newLen))
+		}
+	} else {
+		value = bytes.TrimRight(value, " \t")
+		newLen := len(value)
+		if newLen < origLen {
+			textNode.Segment = seg.WithStop(seg.Stop - (origLen - newLen))
+		}
+	}
+}
+
 func (s *inlinePassthroughParser) Trigger() []byte {
 	return openersFirstByte(s.PassthroughDelimiters)
 }
@@ -266,6 +336,7 @@ const (
 func (p *passthroughInlineTransformer) Transform(
 	doc *ast.Document, reader text.Reader, pc parser.Context,
 ) {
+	source := reader.Source()
 	// Goldmark's walking algorithm is simplistic, and doesn't handle the
 	// possibility of replacing the current node being walked with a new node. So
 	// as a workaround, we split the walk in two. The first walk inserts new
@@ -274,8 +345,7 @@ func (p *passthroughInlineTransformer) Transform(
 	// newly inserted nodes as "processed" so that they are not re-processed as
 	// the walk continues.
 	ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
-		// Anchor on paragraphs
-		if n.Kind() != ast.KindParagraph || !entering {
+		if !entering || !isInlineContainerNode(n) {
 			return ast.WalkContinue, nil
 		}
 
@@ -297,7 +367,11 @@ func (p *passthroughInlineTransformer) Transform(
 		}
 
 		parent := n.Parent()
-		currentParagraph := ast.NewParagraph()
+		containerKind := n.Kind()
+		currentContainer := newInlineContainer(containerKind)
+		if currentContainer == nil {
+			return ast.WalkContinue, nil
+		}
 		// AppendChild breaks the link between the node and its siblings, so we
 		// need to manually track the current and next node.
 		currentNode := n.FirstChild()
@@ -306,39 +380,51 @@ func (p *passthroughInlineTransformer) Transform(
 		for currentNode != nil {
 			nextNode := currentNode.NextSibling()
 			if currentNode.Kind() != KindPassthroughInline {
-				currentParagraph.AppendChild(currentParagraph, currentNode)
+				currentContainer.AppendChild(currentContainer, currentNode)
 				currentNode = nextNode
 			} else if currentNode.Kind() == KindPassthroughInline {
 				inline := currentNode.(*PassthroughInline)
 
 				// Only split into a new block if the delimiters are block delimiters
 				if !containsDelimiters(p.BlockDelimiters, inline.Delimiters) {
-					currentParagraph.AppendChild(currentParagraph, currentNode)
+					currentContainer.AppendChild(currentContainer, currentNode)
 					currentNode = nextNode
 					continue
 				}
 
 				newBlock := newPassthroughBlock(inline.Delimiters)
 				newBlock.Lines().Append(inline.Segment)
-				if currentParagraph.ChildCount() > 0 {
-					parent.InsertAfter(parent, insertionPoint, currentParagraph)
+				if currentContainer.ChildCount() > 0 {
+					// Trim trailing whitespace from text preceding the block in tight lists
+					if containerKind == ast.KindTextBlock {
+						trimContainerSpace(currentContainer, source, false)
+					}
+					// Trim leading whitespace from text following a previous block in tight lists
+					if containerKind == ast.KindTextBlock && insertionPoint.Kind() == KindPassthroughBlock {
+						trimContainerSpace(currentContainer, source, true)
+					}
+					parent.InsertAfter(parent, insertionPoint, currentContainer)
 					// Since we're not removing the original paragraph, we need to ensure
 					// that this paragraph is not re-processed as the walk continues
-					currentParagraph.SetAttributeString(passthroughProcessed, "true")
-					insertionPoint = currentParagraph
+					currentContainer.SetAttributeString(passthroughProcessed, "true")
+					insertionPoint = currentContainer
 				}
 				parent.InsertAfter(parent, insertionPoint, newBlock)
 				insertionPoint = newBlock
-				currentParagraph = ast.NewParagraph()
+				currentContainer = newInlineContainer(containerKind)
 				currentNode = nextNode
 			}
 		}
 
-		if currentParagraph.ChildCount() > 0 {
-			parent.InsertAfter(parent, insertionPoint, currentParagraph)
+		if currentContainer.ChildCount() > 0 {
+			// Trim leading whitespace from text following a block in tight lists
+			if containerKind == ast.KindTextBlock && insertionPoint.Kind() == KindPassthroughBlock {
+				trimContainerSpace(currentContainer, source, true)
+			}
+			parent.InsertAfter(parent, insertionPoint, currentContainer)
 			// Since we're not removing the original paragraph, we need to ensure
 			// that this paragraph is not re-processed as the walk continues
-			currentParagraph.SetAttributeString(passthroughProcessed, "true")
+			currentContainer.SetAttributeString(passthroughProcessed, "true")
 		}
 
 		// At this point, we don't remove the original paragraph, but mark it
@@ -357,7 +443,7 @@ func (p *passthroughInlineTransformer) Transform(
 			// Have to eagerly fetch this because `c` may be removed from the tree,
 			// destroying its link to the next sibling.
 			next := c.NextSibling()
-			if c.Kind() == ast.KindParagraph {
+			if isInlineContainerNode(c) {
 				val, found := c.AttributeString(passthroughMarkedForDeletion)
 				if found && val == "true" {
 					n.RemoveChild(n, c)
