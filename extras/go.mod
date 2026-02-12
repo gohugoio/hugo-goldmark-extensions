@@ -2,4 +2,4 @@ module github.com/gohugoio/hugo-goldmark-extensions/extras
 
 go 1.22
 
-require github.com/yuin/goldmark v1.7.12
+require github.com/yuin/goldmark v1.7.16
