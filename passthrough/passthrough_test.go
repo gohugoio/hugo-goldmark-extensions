@@ -7,6 +7,7 @@ import (
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/text"
 
 	qt "github.com/frankban/quicktest"
@@ -14,30 +15,33 @@ import (
 
 func buildTestParser() goldmark.Markdown {
 	md := goldmark.New(
-		goldmark.WithExtensions(New(
-			Config{
-				InlineDelimiters: []Delimiters{
-					{
-						Open:  "$",
-						Close: "$",
+		goldmark.WithExtensions(
+			extension.TaskList,
+			extension.DefinitionList,
+			New(
+				Config{
+					InlineDelimiters: []Delimiters{
+						{
+							Open:  "$",
+							Close: "$",
+						},
+						{
+							Open:  "\\(",
+							Close: "\\)",
+						},
 					},
-					{
-						Open:  "\\(",
-						Close: "\\)",
+					BlockDelimiters: []Delimiters{
+						{
+							Open:  "$$",
+							Close: "$$",
+						},
+						{
+							Open:  "\\[",
+							Close: "\\]",
+						},
 					},
 				},
-				BlockDelimiters: []Delimiters{
-					{
-						Open:  "$$",
-						Close: "$$",
-					},
-					{
-						Open:  "\\[",
-						Close: "\\]",
-					},
-				},
-			},
-		)),
+			)),
 	)
 	return md
 }
@@ -609,10 +613,517 @@ Inline $a^*=x-b^*$ equation
 	})
 }
 
+func TestBlockMathInTightUnorderedList(t *testing.T) {
+	input := `- $$a^*=x-b^*$$
+- item 2`
+	expected := `<ul>
+<li>
+$$a^*=x-b^*$$
+</li>
+<li>item 2</li>
+</ul>`
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestBlockMathWithTextInTightUnorderedList(t *testing.T) {
+	input := `- before \[a^*=x-b^*\] after`
+	expected := `<ul>
+<li>before
+\[a^*=x-b^*\]
+after</li>
+</ul>`
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestInlineMathInTightUnorderedList(t *testing.T) {
+	input := `- $a^*=x-b^*$
+- item 2`
+	expected := `<ul>
+<li>$a^*=x-b^*$</li>
+<li>item 2</li>
+</ul>`
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestInlineMathWithTextInTightUnorderedList(t *testing.T) {
+	input := `- before $a^*=x-b^*$ after`
+	expected := `<ul>
+<li>before $a^*=x-b^*$ after</li>
+</ul>`
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestBlockMathInLooseUnorderedList(t *testing.T) {
+	input := `- item 1
+
+- $$a^*=x-b^*$$
+
+- item 3`
+	expected := `<ul>
+<li>
+<p>item 1</p>
+</li>
+<li>
+$$a^*=x-b^*$$
+</li>
+<li>
+<p>item 3</p>
+</li>
+</ul>`
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestInlineMathInLooseUnorderedList(t *testing.T) {
+	input := `- item 1
+
+- $a^*=x-b^*$
+
+- item 3`
+	expected := `<ul>
+<li>
+<p>item 1</p>
+</li>
+<li>
+<p>$a^*=x-b^*$</p>
+</li>
+<li>
+<p>item 3</p>
+</li>
+</ul>`
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestBlockMathInTightOrderedList(t *testing.T) {
+	input := `1. $$a^*=x-b^*$$
+2. item 2`
+	expected := `<ol>
+<li>
+$$a^*=x-b^*$$
+</li>
+<li>item 2</li>
+</ol>`
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestBlockMathWithTextInTightOrderedList(t *testing.T) {
+	input := `1. before \[a^*=x-b^*\] after`
+	expected := `<ol>
+<li>before
+\[a^*=x-b^*\]
+after</li>
+</ol>`
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestInlineMathInTightOrderedList(t *testing.T) {
+	input := `1. $a^*=x-b^*$
+2. item 2`
+	expected := `<ol>
+<li>$a^*=x-b^*$</li>
+<li>item 2</li>
+</ol>`
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestInlineMathWithTextInTightOrderedList(t *testing.T) {
+	input := `1. before $a^*=x-b^*$ after`
+	expected := `<ol>
+<li>before $a^*=x-b^*$ after</li>
+</ol>`
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestBlockMathInLooseOrderedList(t *testing.T) {
+	input := `1. item 1
+
+2. $$a^*=x-b^*$$
+
+3. item 3`
+	expected := `<ol>
+<li>
+<p>item 1</p>
+</li>
+<li>
+$$a^*=x-b^*$$
+</li>
+<li>
+<p>item 3</p>
+</li>
+</ol>`
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestInlineMathInLooseOrderedList(t *testing.T) {
+	input := `1. item 1
+
+2. $a^*=x-b^*$
+
+3. item 3`
+	expected := `<ol>
+<li>
+<p>item 1</p>
+</li>
+<li>
+<p>$a^*=x-b^*$</p>
+</li>
+<li>
+<p>item 3</p>
+</li>
+</ol>`
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestBlockMathInNestedTightUnorderedList(t *testing.T) {
+	input := `- outer 1
+  - $$a^*=x-b^*$$
+  - inner 2
+- outer 2`
+	expected := `<ul>
+<li>outer 1
+<ul>
+<li>
+$$a^*=x-b^*$$
+</li>
+<li>inner 2</li>
+</ul>
+</li>
+<li>outer 2</li>
+</ul>`
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestInlineMathInNestedTightUnorderedList(t *testing.T) {
+	input := `- outer 1
+  - $a^*=x-b^*$
+  - inner 2
+- outer 2`
+	expected := `<ul>
+<li>outer 1
+<ul>
+<li>$a^*=x-b^*$</li>
+<li>inner 2</li>
+</ul>
+</li>
+<li>outer 2</li>
+</ul>`
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestBlockMathInNestedLooseUnorderedList(t *testing.T) {
+	input := `- outer 1
+
+  - $$a^*=x-b^*$$
+
+  - inner 2
+
+- outer 2`
+	expected := `<ul>
+<li>
+<p>outer 1</p>
+<ul>
+<li>
+$$a^*=x-b^*$$
+</li>
+<li>
+<p>inner 2</p>
+</li>
+</ul>
+</li>
+<li>
+<p>outer 2</p>
+</li>
+</ul>`
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestInlineMathInNestedLooseUnorderedList(t *testing.T) {
+	input := `- outer 1
+
+  - $a^*=x-b^*$
+
+  - inner 2
+
+- outer 2`
+	expected := `<ul>
+<li>
+<p>outer 1</p>
+<ul>
+<li>
+<p>$a^*=x-b^*$</p>
+</li>
+<li>
+<p>inner 2</p>
+</li>
+</ul>
+</li>
+<li>
+<p>outer 2</p>
+</li>
+</ul>`
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestBlockMathInNestedTightOrderedList(t *testing.T) {
+	input := `1. outer 1
+   1. $$a^*=x-b^*$$
+   2. inner 2
+2. outer 2`
+	expected := `<ol>
+<li>outer 1
+<ol>
+<li>
+$$a^*=x-b^*$$
+</li>
+<li>inner 2</li>
+</ol>
+</li>
+<li>outer 2</li>
+</ol>`
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestInlineMathInNestedTightOrderedList(t *testing.T) {
+	input := `1. outer 1
+   1. $a^*=x-b^*$
+   2. inner 2
+2. outer 2`
+	expected := `<ol>
+<li>outer 1
+<ol>
+<li>$a^*=x-b^*$</li>
+<li>inner 2</li>
+</ol>
+</li>
+<li>outer 2</li>
+</ol>`
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestBlockMathInNestedLooseOrderedList(t *testing.T) {
+	input := `1. outer 1
+
+   1. $$a^*=x-b^*$$
+
+   2. inner 2
+
+2. outer 2`
+	expected := `<ol>
+<li>
+<p>outer 1</p>
+<ol>
+<li>
+$$a^*=x-b^*$$
+</li>
+<li>
+<p>inner 2</p>
+</li>
+</ol>
+</li>
+<li>
+<p>outer 2</p>
+</li>
+</ol>`
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestInlineMathInNestedLooseOrderedList(t *testing.T) {
+	input := `1. outer 1
+
+   1. $a^*=x-b^*$
+
+   2. inner 2
+
+2. outer 2`
+	expected := `<ol>
+<li>
+<p>outer 1</p>
+<ol>
+<li>
+<p>$a^*=x-b^*$</p>
+</li>
+<li>
+<p>inner 2</p>
+</li>
+</ol>
+</li>
+<li>
+<p>outer 2</p>
+</li>
+</ol>`
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestBlockMathInTaskList(t *testing.T) {
+	input := `- [ ] $$a^*=x-b^*$$
+- [x] item 2`
+	expected := "<ul>\n<li><input disabled=\"\" type=\"checkbox\"> \n$$a^*=x-b^*$$\n</li>\n<li><input checked=\"\" disabled=\"\" type=\"checkbox\"> item 2</li>\n</ul>"
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestBlockMathWithTextInTaskList(t *testing.T) {
+	input := `- [ ] before \[a^*=x-b^*\] after`
+	expected := "<ul>\n<li><input disabled=\"\" type=\"checkbox\"> before\n\\[a^*=x-b^*\\]\nafter</li>\n</ul>"
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestInlineMathInTaskList(t *testing.T) {
+	input := `- [ ] $a^*=x-b^*$
+- [x] item 2`
+	expected := "<ul>\n<li><input disabled=\"\" type=\"checkbox\"> $a^*=x-b^*$</li>\n<li><input checked=\"\" disabled=\"\" type=\"checkbox\"> item 2</li>\n</ul>"
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestInlineMathWithTextInTaskList(t *testing.T) {
+	input := `- [x] before $a^*=x-b^*$ after`
+	expected := "<ul>\n<li><input checked=\"\" disabled=\"\" type=\"checkbox\"> before $a^*=x-b^*$ after</li>\n</ul>"
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestBlockMathInDescriptionListDefinition(t *testing.T) {
+	input := `term
+: $$a^*=x-b^*$$`
+	expected := `<dl>
+<dt>term</dt>
+<dd>$$a^*=x-b^*$$
+</dd>
+</dl>`
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestBlockMathWithTextInDescriptionListDefinition(t *testing.T) {
+	input := `term
+: before \[a^*=x-b^*\] after`
+	expected := `<dl>
+<dt>term</dt>
+<dd>before
+\[a^*=x-b^*\]
+after</dd>
+</dl>`
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestInlineMathInDescriptionListDefinition(t *testing.T) {
+	input := `term
+: $a^*=x-b^*$`
+	expected := `<dl>
+<dt>term</dt>
+<dd>$a^*=x-b^*$</dd>
+</dl>`
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestBlockMathInDescriptionListTerm(t *testing.T) {
+	// Block delimiters in terms should remain inline (not split)
+	input := `$$a^*=x-b^*$$
+: definition`
+	expected := `<dl>
+<dt>$$a^*=x-b^*$$</dt>
+<dd>definition</dd>
+</dl>`
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestInlineMathInDescriptionListTerm(t *testing.T) {
+	input := `$a^*=x-b^*$
+: definition`
+	expected := `<dl>
+<dt>$a^*=x-b^*$</dt>
+<dd>definition</dd>
+</dl>`
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
 func BenchmarkWithAndWithoutPassthrough(b *testing.B) {
 	const input = `
 ## Block
-	
+
 $$
 a^*=x-b^*
 $$
