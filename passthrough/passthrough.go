@@ -393,6 +393,7 @@ func (p *passthroughInlineTransformer) Transform(
 				}
 
 				newBlock := newPassthroughBlock(inline.Delimiters)
+				newBlock.SetPos(inline.Pos())
 				newBlock.Lines().Append(inline.Segment)
 				if currentContainer.ChildCount() > 0 {
 					// Trim trailing whitespace from text preceding the block in tight lists
