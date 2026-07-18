@@ -2,41 +2,79 @@ package extras_test
 
 import (
 	"bytes"
+	"io"
 	"testing"
 
-	"github.com/gohugoio/hugo-goldmark-extensions/extras"
-	"github.com/yuin/goldmark/text"
-
-	"github.com/yuin/goldmark"
-	"github.com/yuin/goldmark/testutil"
+	"github.com/gohugoio/hugo-goldmark-extensions/extras/v2"
+	"github.com/yuin/goldmark/v2/parser"
+	"github.com/yuin/goldmark/v2/renderer"
+	"github.com/yuin/goldmark/v2/renderer/html"
+	"github.com/yuin/goldmark/v2/testutil"
 )
 
-func buildGoldmarkWithInlineTag(conf extras.Config) goldmark.Markdown {
-	return goldmark.New(goldmark.WithExtensions(extras.New(conf)))
+// md bundles a parser and renderer — the v2 replacement for goldmark.Markdown,
+// which no longer exists.
+type md struct {
+	p parser.Parser
+	r renderer.Renderer[io.Writer]
+}
+
+func newMD(parserExts []parser.Extension, htmlExts []html.Extension) md {
+	return md{
+		p: parser.New(parser.WithExtensions(parserExts...)),
+		r: html.New(html.WithExtensions(htmlExts...)),
+	}
+}
+
+// inlineMD builds a converter with the extras inline-tag extension for the given config.
+func inlineMD(conf extras.Config) md {
+	return newMD(
+		[]parser.Extension{extras.NewParser(conf)},
+		[]html.Extension{extras.NewHTMLRenderer(conf)},
+	)
+}
+
+func (m md) Convert(source []byte, w io.Writer) error {
+	return m.r.Render(w, source, m.p.Parse(source))
+}
+
+func (m md) stringFunc() testutil.MarkdownToStringFunc {
+	return testutil.NewMarkdownToStringFunc(m.p, m.r)
 }
 
 var (
-	markdown                       = goldmark.New()
-	markdownWithSuperscript        = buildGoldmarkWithInlineTag(extras.Config{Superscript: extras.SuperscriptConfig{Enable: true}})
-	markdownWithSubscript          = buildGoldmarkWithInlineTag(extras.Config{Subscript: extras.SubscriptConfig{Enable: true}})
-	markdownWithInsert             = buildGoldmarkWithInlineTag(extras.Config{Insert: extras.InsertConfig{Enable: true}})
-	markdownWithMark               = buildGoldmarkWithInlineTag(extras.Config{Mark: extras.MarkConfig{Enable: true}})
-	markdownWithDelete             = buildGoldmarkWithInlineTag(extras.Config{Delete: extras.DeleteConfig{Enable: true}})
-	markdownWithDeleteAndSubscript = goldmark.New(
-		goldmark.WithExtensions(
-			extras.New(extras.Config{Subscript: extras.SubscriptConfig{Enable: true}}),
-			extras.New(extras.Config{Delete: extras.DeleteConfig{Enable: true}}),
-		))
+	markdown                = newMD(nil, nil)
+	markdownWithSuperscript = inlineMD(extras.Config{Superscript: extras.SuperscriptConfig{Enable: true}})
+	markdownWithSubscript   = inlineMD(extras.Config{Subscript: extras.SubscriptConfig{Enable: true}})
+	markdownWithInsert      = inlineMD(extras.Config{Insert: extras.InsertConfig{Enable: true}})
+	markdownWithMark        = inlineMD(extras.Config{Mark: extras.MarkConfig{Enable: true}})
+	markdownWithDelete      = inlineMD(extras.Config{Delete: extras.DeleteConfig{Enable: true}})
+	// Two separate extension instances, to check they compose.
+	markdownWithDeleteAndSubscript = newMD(
+		[]parser.Extension{
+			extras.NewParser(extras.Config{Subscript: extras.SubscriptConfig{Enable: true}}),
+			extras.NewParser(extras.Config{Delete: extras.DeleteConfig{Enable: true}}),
+		},
+		[]html.Extension{
+			extras.NewHTMLRenderer(extras.Config{Subscript: extras.SubscriptConfig{Enable: true}}),
+			extras.NewHTMLRenderer(extras.Config{Delete: extras.DeleteConfig{Enable: true}}),
+		},
+	)
 )
 
+// dump exercises a node's Dump method (via PrettyPrint, which recurses); it just
+// must not crash.
+func dump(m md, input string) {
+	root := m.p.Parse([]byte(input))
+	_ = root.Dump([]byte(input)).PrettyPrint(io.Discard, []byte(input))
+}
+
 func TestSuperscript(t *testing.T) {
-	testutil.DoTestCaseFile(markdownWithSuperscript, "_test/superscript.txt", t, testutil.ParseCliCaseArg()...)
+	testutil.DoTestCaseFile(markdownWithSuperscript.stringFunc(), "_test/superscript.txt", t, testutil.ParseCliCaseArg()...)
 }
 
 func TestSuperscriptDump(t *testing.T) {
-	input := "Parabola: f(x) = x^2^. Amazing"
-	root := markdownWithSuperscript.Parser().Parse(text.NewReader([]byte(input)))
-	root.Dump([]byte(input), 0)
+	dump(markdownWithSuperscript, "Parabola: f(x) = x^2^. Amazing")
 }
 
 func BenchmarkWithAndWithoutOneSuperscript(b *testing.B) {
@@ -67,19 +105,17 @@ This formula contains one superscript: f(x) = x^2^ .`
 }
 
 func TestSubscript(t *testing.T) {
-	testutil.DoTestCaseFile(markdownWithDeleteAndSubscript, "_test/subscript.txt", t, testutil.ParseCliCaseArg()...)
+	testutil.DoTestCaseFile(markdownWithDeleteAndSubscript.stringFunc(), "_test/subscript.txt", t, testutil.ParseCliCaseArg()...)
 }
 
 func TestSubscriptDump(t *testing.T) {
-	input := "The H~2~O molecule"
-	root := markdownWithSubscript.Parser().Parse(text.NewReader([]byte(input)))
-	root.Dump([]byte(input), 0)
+	dump(markdownWithSubscript, "The H~2~O molecule")
 }
 
 func BenchmarkWithAndWithoutOneSubscript(b *testing.B) {
 	const input = `
 ## Water formula
- 
+
 The chemical formula for water H~2~O contains one subscript.`
 
 	b.Run("without subscript", func(b *testing.B) {
@@ -104,14 +140,11 @@ The chemical formula for water H~2~O contains one subscript.`
 }
 
 func TestInsert(t *testing.T) {
-	testutil.DoTestCaseFile(markdownWithInsert, "_test/insert.txt", t, testutil.ParseCliCaseArg()...)
+	testutil.DoTestCaseFile(markdownWithInsert.stringFunc(), "_test/insert.txt", t, testutil.ParseCliCaseArg()...)
 }
 
 func TestInsertDump(t *testing.T) {
-	input := "Add some text: ++insertion++. Amazing."
-	root := markdownWithInsert.Parser().Parse(text.NewReader([]byte(input)))
-	root.Dump([]byte(input), 0)
-	// Prints to stdout, so just test that it doesn't crash
+	dump(markdownWithInsert, "Add some text: ++insertion++. Amazing.")
 }
 
 func BenchmarkWithAndWithoutInsert(b *testing.B) {
@@ -142,14 +175,11 @@ Add some text: ++insertion++. Amazing.`
 }
 
 func TestMark(t *testing.T) {
-	testutil.DoTestCaseFile(markdownWithMark, "_test/mark.txt", t, testutil.ParseCliCaseArg()...)
+	testutil.DoTestCaseFile(markdownWithMark.stringFunc(), "_test/mark.txt", t, testutil.ParseCliCaseArg()...)
 }
 
 func TestMarkDump(t *testing.T) {
-	input := "Add some marked text: ==marked==. Amazing."
-	root := markdownWithMark.Parser().Parse(text.NewReader([]byte(input)))
-	root.Dump([]byte(input), 0)
-	// Prints to stdout, so just test that it doesn't crash
+	dump(markdownWithMark, "Add some marked text: ==marked==. Amazing.")
 }
 
 func BenchmarkWithAndWithoutMark(b *testing.B) {
@@ -180,13 +210,11 @@ Add some marked text: ==marked==. Amazing.`
 }
 
 func TestDelete(t *testing.T) {
-	testutil.DoTestCaseFile(markdownWithDelete, "_test/delete.txt", t, testutil.ParseCliCaseArg()...)
+	testutil.DoTestCaseFile(markdownWithDelete.stringFunc(), "_test/delete.txt", t, testutil.ParseCliCaseArg()...)
 }
 
 func TestDeleteDump(t *testing.T) {
-	input := "Delete some text: ~~deleted~~. Amazing."
-	root := markdownWithDelete.Parser().Parse(text.NewReader([]byte(input)))
-	root.Dump([]byte(input), 0)
+	dump(markdownWithDelete, "Delete some text: ~~deleted~~. Amazing.")
 }
 
 func BenchmarkWithAndWithoutDelete(b *testing.B) {
@@ -209,7 +237,7 @@ Delete some text: ~~deleted~~. Amazing.`
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			var buf bytes.Buffer
-			if err := markdownWithMark.Convert([]byte(input), &buf); err != nil {
+			if err := markdownWithDelete.Convert([]byte(input), &buf); err != nil {
 				b.Fatal(err)
 			}
 		}

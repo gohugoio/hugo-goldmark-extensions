@@ -1,15 +1,14 @@
 package extras
 
 import (
-	"slices"
+	"io"
 
-	"github.com/yuin/goldmark"
-	"github.com/yuin/goldmark/ast"
-	"github.com/yuin/goldmark/parser"
-	"github.com/yuin/goldmark/renderer"
-	"github.com/yuin/goldmark/renderer/html"
-	"github.com/yuin/goldmark/text"
-	"github.com/yuin/goldmark/util"
+	"github.com/yuin/goldmark/v2/ast"
+	"github.com/yuin/goldmark/v2/parser"
+	"github.com/yuin/goldmark/v2/renderer"
+	"github.com/yuin/goldmark/v2/renderer/html"
+	"github.com/yuin/goldmark/v2/text"
+	"github.com/yuin/goldmark/v2/util"
 )
 
 type inlineTagDelimiterProcessor struct {
@@ -34,10 +33,11 @@ func (p *inlineTagDelimiterProcessor) OnMatch(_ int) ast.Node {
 
 type inlineTagParser struct {
 	InlineTag
+	proc parser.DelimiterProcessor
 }
 
 func newInlineTagParser(tag InlineTag) parser.InlineParser {
-	return &inlineTagParser{InlineTag: tag}
+	return &inlineTagParser{InlineTag: tag, proc: newInlineTagDelimiterProcessor(tag)}
 }
 
 // Trigger implements parser.InlineParser.
@@ -47,76 +47,60 @@ func (s *inlineTagParser) Trigger() []byte {
 
 // Parse implements the parser.InlineParser for all types of InlineTags.
 func (s *inlineTagParser) Parse(_ ast.Node, block text.Reader, pc parser.Context) ast.Node {
-	before := block.PrecendingCharacter()
-	line, segment := block.PeekLine()
-
-	// Issue 30
-	modifiedLine := slices.Clone(line)
-	if s.InlineTag.TagKind == KindSuperscript && len(line) > s.Number {
-		symbols := []byte{'+', '-', '\''}
-		if slices.Contains(symbols, line[s.Number]) {
-			modifiedLine[s.Number] = 'z' // replace with any letter or number
-		}
-	}
-
-	node := parser.ScanDelimiter(modifiedLine, before, s.Number, newInlineTagDelimiterProcessor(s.InlineTag))
-	if node == nil || node.OriginalLength > 2 || before == rune(s.Char) {
+	before := block.PrecedingCharacter()
+	if before == rune(s.Char) {
 		return nil
 	}
-	node.Segment = segment.WithStop(segment.Start + node.OriginalLength)
-	block.Advance(node.OriginalLength)
-	pc.PushDelimiter(node)
+
+	line, _ := block.PeekLine()
+	// Length of the delimiter run: at least Number, at most 2 (these tags are
+	// one- or two-character delimiters; a longer run is not one of ours).
+	n := 0
+	for n < len(line) && line[n] == s.Char {
+		n++
+	}
+	if n < s.Number || n > 2 {
+		return nil
+	}
+
+	// Issue 30: a superscript whose content begins with one of + - ' — the
+	// punctuation right after the caret makes the run non-left-flanking, so
+	// ParseDelimiter would refuse to open it. Force it open in that case (this is
+	// the v2 equivalent of the old trick of swapping that byte for a letter before
+	// scanning; here CanOpen is exported so we can set it directly instead).
+	forceOpen := s.TagKind == KindSuperscript && s.Number < len(line) &&
+		(line[s.Number] == '+' || line[s.Number] == '-' || line[s.Number] == '\'')
+
+	node := parser.ParseDelimiter(block, s.Number, s.proc, pc)
+	if node == nil {
+		return nil
+	}
+	if forceOpen {
+		node.CanOpen = true
+	}
 	return node
-}
-
-type inlineTagHTMLRenderer struct {
-	htmlTag string
-	tagKind ast.NodeKind
-	html.Config
-}
-
-// NewInlineTagHTMLRenderer returns a new NodeRenderer that renders Inline nodes to HTML.
-func NewInlineTagHTMLRenderer(tag InlineTag, opts ...html.Option) renderer.NodeRenderer {
-	r := &inlineTagHTMLRenderer{
-		htmlTag: tag.Html,
-		tagKind: tag.TagKind,
-		Config:  html.NewConfig(),
-	}
-	for _, opt := range opts {
-		opt.SetHTMLOption(&r.Config)
-	}
-	return r
-}
-
-// RegisterFuncs registers rendering functions to the given NodeRendererFuncRegisterer.
-func (r *inlineTagHTMLRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
-	reg.Register(r.tagKind, r.renderInlineTag)
 }
 
 // inlineTagAttributeFilter is a global filter for attributes.
 var inlineTagAttributeFilter = html.GlobalAttributeFilter
 
-// renderInlineTag renders an inline tag.
-func (r *inlineTagHTMLRenderer) renderInlineTag(
-	w util.BufWriter, _ []byte, n ast.Node, entering bool,
-) (ast.WalkStatus, error) {
+// renderInlineTag renders any inline tag node: it reads the HTML tag name off the
+// node itself, so one function serves every configured tag kind.
+func renderInlineTag(writer io.Writer, _ []byte, n ast.Node, entering bool, _ renderer.Context) (ast.WalkStatus, error) {
+	w := writer.(util.BufWriter)
+	tag := n.(*inlineTagNode)
 	if entering {
 		_ = w.WriteByte('<')
-		_, _ = w.WriteString(r.htmlTag)
+		_, _ = w.WriteString(tag.Html)
 		if n.Attributes() != nil {
 			html.RenderAttributes(w, n, inlineTagAttributeFilter)
 		}
 	} else {
 		_, _ = w.WriteString("</")
-		_, _ = w.WriteString(r.htmlTag)
+		_, _ = w.WriteString(tag.Html)
 	}
 	_ = w.WriteByte('>')
 	return ast.WalkContinue, nil
-}
-
-// inlineExtension is an extension that adds inline tags to the Markdown parser and renderer.
-type inlineExtension struct {
-	conf Config
 }
 
 // Config configures the extras extension.
@@ -152,37 +136,65 @@ type DeleteConfig struct {
 	Enable bool
 }
 
-// New returns a new inline tag extension.
-
-func New(config Config) goldmark.Extender {
-	return &inlineExtension{
-		conf: config,
+// enabledTags returns the InlineTags enabled by the config, in registration order.
+func (c Config) enabledTags() []InlineTag {
+	var tags []InlineTag
+	if c.Superscript.Enable {
+		tags = append(tags, SuperscriptTag)
 	}
+	if c.Subscript.Enable {
+		tags = append(tags, SubscriptTag)
+	}
+	if c.Insert.Enable {
+		tags = append(tags, InsertTag)
+	}
+	if c.Mark.Enable {
+		tags = append(tags, MarkTag)
+	}
+	if c.Delete.Enable {
+		tags = append(tags, DeleteTag)
+	}
+	return tags
 }
 
-// Extend adds inline tags to the Markdown parser and renderer.
-func (tag *inlineExtension) Extend(md goldmark.Markdown) {
-	addTag := func(tag InlineTag) {
-		md.Parser().AddOptions(parser.WithInlineParsers(
+// inlineParserExtension adds the configured inline tag parsers to a parser.
+type inlineParserExtension struct {
+	conf Config
+}
+
+// NewParser returns a parser.Extension that parses the configured inline tags.
+// Add it with parser.WithExtensions.
+func NewParser(config Config) parser.Extension {
+	return &inlineParserExtension{conf: config}
+}
+
+// ParserOptions implements parser.Extension.
+func (e *inlineParserExtension) ParserOptions(_ *parser.Config) []parser.Option {
+	var opts []parser.Option
+	for _, tag := range e.conf.enabledTags() {
+		opts = append(opts, parser.WithInlineParsers(
 			util.Prioritized(newInlineTagParser(tag), tag.ParsePriority),
 		))
-		md.Renderer().AddOptions(renderer.WithNodeRenderers(
-			util.Prioritized(NewInlineTagHTMLRenderer(tag), tag.RenderPriority),
-		))
 	}
-	if tag.conf.Superscript.Enable {
-		addTag(SuperscriptTag)
+	return opts
+}
+
+// inlineHTMLRenderer renders the configured inline tags to HTML.
+type inlineHTMLRenderer struct {
+	conf Config
+}
+
+// NewHTMLRenderer returns an html.Extension that renders the configured inline
+// tags. Add it with html.WithExtensions.
+func NewHTMLRenderer(config Config) html.Extension {
+	return &inlineHTMLRenderer{conf: config}
+}
+
+// RendererOptions implements html.Extension.
+func (r *inlineHTMLRenderer) RendererOptions(_ *html.Config) []html.Option {
+	renderers := map[ast.NodeKind]html.NodeRenderer{}
+	for _, tag := range r.conf.enabledTags() {
+		renderers[tag.TagKind] = html.NodeRendererFunc(renderInlineTag)
 	}
-	if tag.conf.Subscript.Enable {
-		addTag(SubscriptTag)
-	}
-	if tag.conf.Insert.Enable {
-		addTag(InsertTag)
-	}
-	if tag.conf.Mark.Enable {
-		addTag(MarkTag)
-	}
-	if tag.conf.Delete.Enable {
-		addTag(DeleteTag)
-	}
+	return []html.Option{html.WithNodeRenderers(renderers)}
 }

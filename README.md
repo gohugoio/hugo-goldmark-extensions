@@ -13,7 +13,7 @@ This repository houses a collection of [Goldmark] extensions created by the [Hug
 
 ## Passthrough extension
 
-[![GoDoc](https://godoc.org/github.com/gohugoio/hugo-goldmark-extensions/passthrough?status.svg)](https://godoc.org/github.com/gohugoio/hugo-goldmark-extensions/passthrough)
+[![GoDoc](https://godoc.org/github.com/gohugoio/hugo-goldmark-extensions/passthrough/v2?status.svg)](https://godoc.org/github.com/gohugoio/hugo-goldmark-extensions/passthrough/v2)
 
 Use this extension to preserve raw Markdown within delimited snippets of text. This was initially developed to support [LaTeX] mixed with Markdown, specifically mathematical expressions and equations.
 
@@ -57,7 +57,7 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/gohugoio/hugo-goldmark-extensions/passthrough"
+	"github.com/gohugoio/hugo-goldmark-extensions/passthrough/v2"
 	"github.com/yuin/goldmark"
 )
 
@@ -107,7 +107,7 @@ inline $a^*=x-b^*$ snippet
 
 ## Extras extension
 
-[![GoDoc](https://godoc.org/github.com/gohugoio/hugo-goldmark-extensions/extras?status.svg)](https://godoc.org/github.com/gohugoio/hugo-goldmark-extensions/extras)
+[![GoDoc](https://godoc.org/github.com/gohugoio/hugo-goldmark-extensions/extras/v2?status.svg)](https://godoc.org/github.com/gohugoio/hugo-goldmark-extensions/extras/v2)
 
 Use this extension to include [deleted text], [inserted text], [mark text], [subscript], and [superscript] elements in Markdown.
 
@@ -145,7 +145,7 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/gohugoio/hugo-goldmark-extensions/extras"
+	"github.com/gohugoio/hugo-goldmark-extensions/extras/v2"
 	"github.com/yuin/goldmark"
 )
 
