@@ -1,7 +1,7 @@
 package extras
 
 import (
-	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/v2/ast"
 )
 
 type InlineTag struct {
@@ -65,11 +65,9 @@ type inlineTagNode struct {
 }
 
 func newInlineTag(tag InlineTag) *inlineTagNode {
-	return &inlineTagNode{
-		BaseInline: ast.BaseInline{},
-
-		InlineTag: tag,
-	}
+	n := &inlineTagNode{InlineTag: tag}
+	n.Init(n)
+	return n
 }
 
 var (
@@ -84,6 +82,6 @@ func (n *inlineTagNode) Kind() ast.NodeKind {
 	return n.TagKind
 }
 
-func (n *inlineTagNode) Dump(source []byte, level int) {
-	ast.DumpHelper(n, source, level, nil, nil)
+func (n *inlineTagNode) Dump(source []byte) *ast.NodeDump {
+	return ast.NewNodeDump(n, nil)
 }

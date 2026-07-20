@@ -2,56 +2,79 @@ package passthrough
 
 import (
 	"bytes"
+	"io"
 	"strings"
 	"testing"
 
-	"github.com/yuin/goldmark"
-	"github.com/yuin/goldmark/ast"
-	"github.com/yuin/goldmark/extension"
-	"github.com/yuin/goldmark/text"
+	"github.com/yuin/goldmark/v2/ast"
+	"github.com/yuin/goldmark/v2/extension"
+	"github.com/yuin/goldmark/v2/parser"
+	"github.com/yuin/goldmark/v2/renderer"
+	"github.com/yuin/goldmark/v2/renderer/html"
 
 	qt "github.com/frankban/quicktest"
 )
 
-func buildTestParser() goldmark.Markdown {
-	md := goldmark.New(
-		goldmark.WithExtensions(
-			extension.TaskList,
-			extension.DefinitionList,
-			New(
-				Config{
-					InlineDelimiters: []Delimiters{
-						{
-							Open:  "$",
-							Close: "$",
-						},
-						{
-							Open:  "\\(",
-							Close: "\\)",
-						},
-					},
-					BlockDelimiters: []Delimiters{
-						{
-							Open:  "$$",
-							Close: "$$",
-						},
-						{
-							Open:  "\\[",
-							Close: "\\]",
-						},
-					},
-				},
-			)),
-	)
-	return md
+// md bundles a parser and renderer — the v2 replacement for goldmark.Markdown,
+// which no longer exists.
+type md struct {
+	p parser.Parser
+	r renderer.Renderer[io.Writer]
+}
+
+func (m md) Convert(source []byte, w io.Writer) error {
+	return m.r.Render(w, source, m.p.Parse(source))
+}
+
+func (m md) Parser() parser.Parser {
+	return m.p
+}
+
+func buildTestParser() md {
+	conf := Config{
+		InlineDelimiters: []Delimiters{
+			{
+				Open:  "$",
+				Close: "$",
+			},
+			{
+				Open:  "\\(",
+				Close: "\\)",
+			},
+		},
+		BlockDelimiters: []Delimiters{
+			{
+				Open:  "$$",
+				Close: "$$",
+			},
+			{
+				Open:  "\\[",
+				Close: "\\]",
+			},
+		},
+	}
+
+	p := parser.New(parser.WithExtensions(
+		extension.NewDefinitionListParser(),
+		extension.NewTaskCheckBoxParser(),
+		NewParser(conf),
+	))
+	// The definition-list renderer must be registered before the task-list
+	// renderer: the task-list renderer overrides KindParagraph rendering and
+	// captures html.Config.Paragraph.IsInTightBlockFunc at registration time, so
+	// the definition-list extension must have installed its tight-block detector
+	// first for tight <dd> paragraphs to render without <p> wrappers.
+	r := html.New(html.WithExtensions(
+		extension.NewDefinitionListHTMLRenderer(),
+		extension.NewTaskListItemHTMLRenderer(),
+		NewHTMLRenderer(conf),
+	))
+	return md{p: p, r: r}
 }
 
 func Parse(t *testing.T, input string) string {
 	md := buildTestParser()
 	var buf bytes.Buffer
-
-	// root := md.Parser().Parse(text.NewReader([]byte(input)))
-	// root.Dump([]byte(input), 0)
 
 	if err := md.Convert([]byte(input), &buf); err != nil {
 		t.Fatal(err)
@@ -62,7 +85,7 @@ func Parse(t *testing.T, input string) string {
 func ParseWalk(t testing.TB, input string, cb func(n ast.Node, entering bool) bool) {
 	t.Helper()
 	md := buildTestParser()
-	doc := md.Parser().Parse(text.NewReader([]byte(input)))
+	doc := md.Parser().Parse([]byte(input))
 	err := ast.Walk(
 		doc,
 		func(n ast.Node, entering bool) (ast.WalkStatus, error) {
@@ -97,9 +120,9 @@ func TestInlineEquationWithEmphasisDelimiters(t *testing.T) {
 func TestDump(t *testing.T) {
 	input := "An equation: \\(a^*=x-b^*\\). Amazing"
 	md := buildTestParser()
-	root := md.Parser().Parse(text.NewReader([]byte(input)))
-	root.Dump([]byte(input), 0)
-	// Prints to stdout, so just test that it doesn't crash
+	root := md.Parser().Parse([]byte(input))
+	_ = root.Dump([]byte(input)).PrettyPrint(io.Discard, []byte(input))
+	// Just test that it doesn't crash
 }
 
 func TestInlineEquationWithEmphasisDelimitersSplitAcrossLines(t *testing.T) {
@@ -1133,7 +1156,7 @@ $$
 Inline $a^*=x-b^*$ equation.`
 
 	b.Run("without passthrough", func(b *testing.B) {
-		md := goldmark.New()
+		md := md{p: parser.New(), r: html.New()}
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			var buf bytes.Buffer
