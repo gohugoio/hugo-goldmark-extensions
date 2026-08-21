@@ -9,7 +9,7 @@ jobs:
   test:
     strategy:
       matrix:
-        go-version: [1.25.x, 1.26.x]
+        go-version: [1.26.x, 1.27.x]
         platform: [ubuntu-latest, macos-latest, windows-latest]
         package: [passthrough, extras]
     runs-on: ${{ matrix.platform }}
@@ -18,7 +18,7 @@ jobs:
         shell: bash
     steps:
       - name: Install Go
-        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ matrix.go-version }}
           cache: false
@@ -28,7 +28,7 @@ jobs:
       - name: Update PATH
         run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
       - name: Checkout code
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Fmt
         if: matrix.platform != 'windows-latest'
         run: "diff <(gofmt -d .) <(printf '')"
