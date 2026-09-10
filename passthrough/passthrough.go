@@ -9,6 +9,7 @@ import (
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/renderer"
+	"github.com/yuin/goldmark/renderer/html"
 	"github.com/yuin/goldmark/text"
 	"github.com/yuin/goldmark/util"
 )
@@ -255,7 +256,17 @@ func (s *inlinePassthroughParser) Parse(parent ast.Node, block text.Reader, pc p
 	}
 }
 
-type passthroughInlineRenderer struct{}
+// passthroughInlineRenderer embeds html.Config so that it picks up the
+// html.WithUnsafe() renderer option, keeping passthrough content subject to
+// the same unsafe/safe rules as goldmark's own raw HTML rendering.
+type passthroughInlineRenderer struct {
+	html.Config
+}
+
+// SetOption implements renderer.SetOptioner.
+func (r *passthroughInlineRenderer) SetOption(name renderer.OptionName, value any) {
+	r.Config.SetOption(name, value)
+}
 
 func (r *passthroughInlineRenderer) renderRawInline(w util.BufWriter, source []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
 	if entering {
@@ -263,7 +274,11 @@ func (r *passthroughInlineRenderer) renderRawInline(w util.BufWriter, source []b
 		if !ok {
 			return ast.WalkContinue, nil
 		}
-		w.WriteString(string(n.Segment.Value(source)))
+		value := n.Segment.Value(source)
+		if !r.Unsafe {
+			value = util.EscapeHTML(value)
+		}
+		w.Write(value)
 	}
 	return ast.WalkContinue, nil
 }
@@ -299,14 +314,28 @@ func newPassthroughBlock(delimiters *Delimiters) *PassthroughBlock {
 	}
 }
 
-type passthroughBlockRenderer struct{}
+// passthroughBlockRenderer embeds html.Config so that it picks up the
+// html.WithUnsafe() renderer option, keeping passthrough content subject to
+// the same unsafe/safe rules as goldmark's own raw HTML rendering.
+type passthroughBlockRenderer struct {
+	html.Config
+}
+
+// SetOption implements renderer.SetOptioner.
+func (r *passthroughBlockRenderer) SetOption(name renderer.OptionName, value any) {
+	r.Config.SetOption(name, value)
+}
 
 func (r *passthroughBlockRenderer) renderRawBlock(w util.BufWriter, source []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
 	if entering {
 		l := n.Lines().Len()
 		for i := 0; i < l; i++ {
 			line := n.Lines().At(i)
-			w.WriteString(string(line.Value(source)))
+			value := line.Value(source)
+			if !r.Unsafe {
+				value = util.EscapeHTML(value)
+			}
+			w.Write(value)
 		}
 		w.WriteString("\n")
 	}

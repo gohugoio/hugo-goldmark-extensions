@@ -8,6 +8,7 @@ import (
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
+	"github.com/yuin/goldmark/renderer/html"
 	"github.com/yuin/goldmark/text"
 
 	qt "github.com/frankban/quicktest"
@@ -498,7 +499,8 @@ func TestExample25(t *testing.T) {
 \end{array}
 $$`
 
-	expected := input
+	// '&' is HTML-escaped; browsers decode it, so math renderers see the input.
+	expected := strings.ReplaceAll(input, "&", "&amp;")
 	actual := Parse(t, input)
 
 	c := qt.New(t)
@@ -524,7 +526,8 @@ L(p,w_i) &=& \dfrac{1}{N}\Sigma_{i=1}^N(\underbrace{f_r(x_2
 \end{array}
 \]`
 
-	expected := input
+	// '&' is HTML-escaped; browsers decode it, so math renderers see the input.
+	expected := strings.ReplaceAll(input, "&", "&amp;")
 	actual := Parse(t, input)
 
 	c := qt.New(t)
@@ -1115,6 +1118,111 @@ func TestInlineMathInDescriptionListTerm(t *testing.T) {
 <dd>definition</dd>
 </dl>`
 	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func buildTestParserUnsafe() goldmark.Markdown {
+	md := buildTestParser()
+	md.Renderer().AddOptions(html.WithUnsafe())
+	return md
+}
+
+func TestInlineMathScriptInjectionIsEscaped(t *testing.T) {
+	input := `$<script>alert(1)</script>$`
+	expected := `<p>$&lt;script&gt;alert(1)&lt;/script&gt;$</p>`
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestBlockMathScriptInjectionIsEscaped(t *testing.T) {
+	input := `Block $$<script>alert(1)</script>$$ equation`
+	expected := `<p>Block </p>
+$$&lt;script&gt;alert(1)&lt;/script&gt;$$
+<p> equation</p>`
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestInlineMathScriptInjectionAllowedWhenUnsafe(t *testing.T) {
+	input := `$<script>alert(1)</script>$`
+	expected := `<p>$<script>alert(1)</script>$</p>`
+
+	md := buildTestParserUnsafe()
+	var buf bytes.Buffer
+	if err := md.Convert([]byte(input), &buf); err != nil {
+		t.Fatal(err)
+	}
+	actual := strings.TrimSpace(buf.String())
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestInlineMathWithAmpersandIsEscaped(t *testing.T) {
+	input := `$a &= b$`
+	expected := `<p>$a &amp;= b$</p>`
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestInlineMathWithComparisonOperatorIsEscaped(t *testing.T) {
+	input := `$x < y$`
+	expected := `<p>$x &lt; y$</p>`
+	actual := Parse(t, input)
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+func TestBlockMathScriptInjectionAllowedWhenUnsafe(t *testing.T) {
+	input := `Block $$<script>alert(1)</script>$$ equation`
+	expected := `<p>Block </p>
+$$<script>alert(1)</script>$$
+<p> equation</p>`
+
+	md := buildTestParserUnsafe()
+	var buf bytes.Buffer
+	if err := md.Convert([]byte(input), &buf); err != nil {
+		t.Fatal(err)
+	}
+	actual := strings.TrimSpace(buf.String())
+
+	c := qt.New(t)
+	c.Assert(actual, qt.Equals, expected)
+}
+
+// A closing delimiter that ends with '<' must not combine with the text that
+// follows the passthrough to form a tag.
+func TestInlineDelimiterEndingWithLessThanIsEscaped(t *testing.T) {
+	input := `{<x}<img src=x onerror=alert(1)//`
+	expected := `<p>{&lt;x}&lt;img src=x onerror=alert(1)//</p>`
+
+	md := goldmark.New(
+		goldmark.WithExtensions(
+			New(
+				Config{
+					InlineDelimiters: []Delimiters{
+						{
+							Open:  "{<",
+							Close: "}<",
+						},
+					},
+				},
+			)),
+	)
+	var buf bytes.Buffer
+	if err := md.Convert([]byte(input), &buf); err != nil {
+		t.Fatal(err)
+	}
+	actual := strings.TrimSpace(buf.String())
 
 	c := qt.New(t)
 	c.Assert(actual, qt.Equals, expected)
